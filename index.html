@@ -185,6 +185,11 @@ function dlHTML(p){
  return "";
 }
 function saveBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);}
+let DLNS;
+async function saveFile(blob,name){
+ if(window.claude&&claude.use){ if(DLNS===undefined) DLNS=await claude.use("downloads"); if(DLNS){await DLNS.save({filename:name,data:blob});return;} }
+ saveBlob(blob,name);
+}
 async function getBytes(url){const r=await fetch(url);if(!r.ok)throw new Error(url);return new Uint8Array(await r.arrayBuffer());}
 const CRCT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
 function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
@@ -209,13 +214,13 @@ document.addEventListener("click",async e=>{
   if(btn.dataset.zip){
    const p=P.find(x=>x.id===btn.dataset.zip),b=slug(p.title);
    const files=await Promise.all(p.slides.map(async(s,i)=>({name:b+"-"+(i+1)+".jpg",data:await getBytes("media/ig/"+s+".jpg")})));
-   saveBlob(zipStore(files),b+"-slides.zip");
+   await saveFile(zipStore(files),b+"-slides.zip");
   }else{
    const d=await getBytes(btn.dataset.url);
-   saveBlob(new Blob([d]),btn.dataset.name);
+   await saveFile(new Blob([d]),btn.dataset.name);
   }
   toast("Download started");
- }catch(err){ if(btn.dataset.url){const a=document.createElement("a");a.href=btn.dataset.url;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove();} else toast("Download failed, try the single slides"); }
+ }catch(err){ if(err&&err.code==="declined"){} else if(err&&err.code){toast("Couldn't save here, try the GitHub page");} else if(btn.dataset.url){const a=document.createElement("a");a.href=btn.dataset.url;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove();} else toast("Download failed, try the single slides"); }
  btn.disabled=false; btn.textContent=t0;
 });
 // drawer
