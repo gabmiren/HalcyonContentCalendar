@@ -287,4 +287,6 @@ document.addEventListener("keydown",e=>{const on=$("#lb").classList.contains("on
 document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{plat=b.dataset.p;try{localStorage.setItem("hal_cal2_plat",plat)}catch(e){}render();});
 function render(){document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.p===plat));legend();grid();}
 render();
-</script></body></html>
+</script>
+<script src="edit.js?v=2"></script>
+</body></html>
