@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Halcyon content calendar · TikTok and Instagram · 6 to 20 Nov</title>
+<title>Halcyon content calendar · TikTok and Instagram · Nov and Dec 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -32,6 +32,7 @@ nav button.on{background:var(--s2);color:var(--ink);border-color:#2b3a41}
 .dh{padding:8px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--base)}
 .wk{grid-column:1/-1;padding:10px 10px 8px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg);display:flex;justify-content:space-between}
 .day{min-height:200px;padding:10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--base);display:flex;flex-direction:column;gap:8px}
+.mh{grid-column:1/-1;padding:22px 10px 12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--base);display:flex;justify-content:space-between;align-items:baseline}.mh h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em}.mh h3 em{font-style:normal;color:var(--c)}.day.pad{background:var(--base);opacity:.35}.day.pad .dn b{color:var(--ink3,#555)}
 .day.out{background:repeating-linear-gradient(135deg,#07090b 0 6px,#0a0d10 6px 12px)}
 .day.out .dn b{color:#3a4349}
 .dn{display:flex;justify-content:space-between;align-items:baseline}
@@ -100,8 +101,8 @@ pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);borde
 <div class="wrap">
 <header>
   <div>
-    <div class="lab">Halcyon Trader Funding · Content calendar · TikTok and Instagram · Miren Partners</div>
-    <h1>Weeks one and two, <em>Fri 6 to Fri 20 Nov</em></h1>
+    <div class="lab">Halcyon Trader Funding · TikTok and Instagram</div>
+    <h1>Content calendar, <em>Nov and Dec 2026</em></h1>
   </div>
 </header>
 <div class="bar0">
@@ -141,25 +142,38 @@ function legend(){
  document.querySelectorAll(".lg").forEach(e=>e.onclick=()=>{const p=e.dataset.p;off.has(p)?off.delete(p):off.add(p);render();});
 }
 
-// grid
+// grid: one block per month (Nov and Dec 2026)
+const MONTHS=[[2026,10,"November"],[2026,11,"December"]];
+const LAUNCH="2026-11-06";
 function grid(){
- let h=DOW.map(x=>`<div class="dh lab">${x}</div>`).join("");
- const start=dt("2026-11-02"); const weeks=[["Week 45","2 to 8 Nov"],["Week 46","9 to 15 Nov"],["Week 47","16 to 22 Nov"]];
- for(let w=0;w<3;w++){
-  const wk=P.filter(p=>vis(p)&&p.date>=new Date(start.getTime()+w*7*864e5).toISOString().slice(0,10)&&p.date<=new Date(start.getTime()+(w*7+6)*864e5).toISOString().slice(0,10)).length;
-  h+=`<div class="wk"><span class="lab" style="color:var(--ink2)">${weeks[w][0]} · ${weeks[w][1]}</span><span class="lab">${wk} post${wk===1?"":"s"}</span></div>`;
-  for(let i=0;i<7;i++){
-   const x=new Date(start.getTime()+(w*7+i)*864e5), iso=x.toISOString().slice(0,10);
-   const inW=iso>="2026-11-06"&&iso<="2026-11-20";
-   const ps=P.filter(p=>p.date===iso&&vis(p)).sort((a,b)=>a.time.localeCompare(b.time));
-   const ev=(D.events[iso]||[]).map(e=>`<div class="ev">${esc(e)}</div>`).join("");
-   const cards=ps.map(p=>`<div class="card" style="--pc:${D.pil[p.pillar].c}" data-id="${p.id}">${pubDot(p)}
+ let h="";
+ const iso=d=>d.toISOString().slice(0,10), DAY=864e5, wk0=Date.UTC(2026,10,2); // Mon 2 Nov = week 45
+ const cardHTML=p=>`<div class="card" style="--pc:${D.pil[p.pillar].c}" data-id="${p.id}">${pubDot(p)}
      <div class="m"><span class="lab" style="color:var(--ink2);letter-spacing:.04em">${esc(p.timeLabel.replace(" ET",""))}</span><span class="tag ${p.platform==="TikTok"?"tt":"ig"}">${p.platform==="TikTok"?"TikTok":"IG"}</span><span class="st ${p.scls}">${esc(p.status)}</span></div>
-     <div class="t">${esc(p.title)}</div><div class="sub2">${esc(p.format)}</div></div>`).join("");
-   const ig=P.find(p=>p.date===iso&&p.platform==="Instagram"&&p.story);
-   let lanes="";
-   if(inW&&ig&&plat==="Instagram") lanes+=`<div class="lane"><b>IG STORY</b> ${esc(ig.story[0])}</div>`;
-   h+=`<div class="day ${inW?"":"out"}"><div class="dn"><b>${x.getUTCDate()}</b><span class="lab">${inW?"":(iso<"2026-11-06"?"before launch":"after this plan")}</span></div>${inW?ev:""}${cards}${lanes}</div>`;
+     <div class="t">${esc(p.title)}</div><div class="sub2">${esc(p.format)}</div></div>`;
+ for(const [y,m,name] of MONTHS){
+  const first=Date.UTC(y,m,1), last=Date.UTC(y,m+1,0);
+  const mIso=iso(new Date(first)).slice(0,7);
+  const mc=P.filter(p=>vis(p)&&p.date.startsWith(mIso)).length;
+  h+=`<div class="mh"><h3>${name} <em>${y}</em></h3><span class="lab">${mc} post${mc===1?"":"s"}</span></div>`;
+  h+=DOW.map(x=>`<div class="dh lab">${x}</div>`).join("");
+  let mon=first-((new Date(first).getUTCDay()+6)%7)*DAY;
+  for(;mon<=last;mon+=7*DAY){
+   const sun=mon+6*DAY, a=iso(new Date(mon)), z=iso(new Date(sun));
+   const wn=45+Math.round((mon-wk0)/(7*DAY));
+   const fmtD=t=>new Date(t).getUTCDate()+" "+new Date(t).toLocaleString("en-GB",{month:"short",timeZone:"UTC"});
+   const wc=P.filter(p=>vis(p)&&p.date>=a&&p.date<=z&&p.date.startsWith(mIso)).length;
+   h+=`<div class="wk"><span class="lab" style="color:var(--ink2)">Week ${wn} · ${fmtD(mon)} to ${fmtD(sun)}</span><span class="lab">${wc?wc+" post"+(wc===1?"":"s"):""}</span></div>`;
+   for(let i=0;i<7;i++){
+    const t=mon+i*DAY, d=iso(new Date(t)), inM=d.startsWith(mIso);
+    if(!inM){h+=`<div class="day out pad"><div class="dn"><b>${new Date(t).getUTCDate()}</b></div></div>`;continue;}
+    const pre=d<LAUNCH;
+    const ps=P.filter(p=>p.date===d&&vis(p)).sort((a,b)=>a.time.localeCompare(b.time));
+    const ev=(D.events[d]||[]).map(e=>`<div class="ev">${esc(e)}</div>`).join("");
+    const ig=P.find(p=>p.date===d&&p.platform==="Instagram"&&p.story);
+    const lane=(ig&&plat==="Instagram")?`<div class="lane"><b>IG STORY</b> ${esc(ig.story[0])}</div>`:"";
+    h+=`<div class="day ${pre?"out":""}"><div class="dn"><b>${new Date(t).getUTCDate()}</b><span class="lab">${pre?"before launch":""}</span></div>${pre?"":ev}${ps.map(cardHTML).join("")}${lane}</div>`;
+   }
   }
  }
  $("#grid").innerHTML=h;
