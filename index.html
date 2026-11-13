@@ -240,6 +240,7 @@ document.addEventListener("click",async e=>{
 // publish state: red not scheduled, yellow scheduled, green posted
 function pubState(p){
  if(p.pub==="posted") return ["g","Posted"];
+ if(p.pub==="none") return ["r","Not scheduled"];
  if(p.pub==="scheduled"){const [h,m]=p.time.split(":").map(Number);const due=Date.UTC(+p.date.slice(0,4),+p.date.slice(5,7)-1,+p.date.slice(8,10),h+5,m||0);return Date.now()>=due?["g","Posted"]:["y","Scheduled"];}
  if(D.scheduledThrough&&p.date<=D.scheduledThrough){
   const [h,m]=p.time.split(":").map(Number);
@@ -289,5 +290,5 @@ document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{plat=b.datase
 function render(){document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.p===plat));legend();grid();}
 render();
 </script>
-<script src="edit.js?v=2"></script>
+<script src="edit.js?v=3"></script>
 </body></html>

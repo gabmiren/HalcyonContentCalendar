@@ -1,33 +1,52 @@
-/* Halcyon content calendar · edit mode (v2, 11 Nov 2026)
-   Loads after index.html's own script and hooks grid(), open(), pubState() and fmt() from outside,
-   so the template and the post data in index.html stay untouched.
-   Edits live in this browser's localStorage only, until they're copied out and baked into the data. */
+/* Halcyon content calendar · edit mode (v3, 13 Nov 2026)
+   Loads after index.html's own script and hooks grid(), open(), pubState() and fmt() from outside.
+   Edit mode: move, swap, retime and recaption posts, add new posts and delete posts.
+   Changes are kept in this browser until "Save to GitHub" commits them into index.html,
+   which is the calendar's source of truth (GitHub Pages rebuilds in about a minute). */
 (function(){
 "use strict";
-const KEY="hal_cal_edits_v1", MODEK="hal_cal_editmode_v1";
+const KEY="hal_cal_edits_v1", ADDK="hal_cal_added_v1", DELK="hal_cal_deleted_v1",
+      TOKK="hal_cal_gh_token_v1", PENDK="hal_cal_pending_v1", MODEK="hal_cal_editmode_v1";
+const REPO="gabmiren/HalcyonContentCalendar", BRANCH="main", FILE="index.html";
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DOW7=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DOT={r:"#ff5a6e",y:"#ffc94a",g:"#3ddc84"}, DOTNAME={r:"Not scheduled",y:"Scheduled",g:"Posted"};
+const DOTNAME={r:"Not scheduled",y:"Scheduled",g:"Posted"}, PUBVAL={r:"none",y:"scheduled",g:"posted"};
 const COPYF=[["caption","Caption"],["fbcap","Backup caption"]];
+const STATUS=[["Ready","ok"],["To build","new"],["Needs Halcyon","dep"],["Posted","ok"]];
+const ld=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}};
+const sv=(k,v)=>{try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){toast("Couldn't save in this browser");return false;}};
+const norm=o=>JSON.stringify(typeof o==="string"?JSON.parse(o):o);
 
-// ---------- stable ids from each post's ORIGINAL fields ----------
+// ---------- a save that GitHub Pages hasn't published yet ----------
+let ORIGD=norm(D), PENDING=false;
+const pend=ld(PENDK,null);
+if(pend){
+  if(norm(pend.data)===ORIGD||Date.now()-pend.t>20*60*1000) sv(PENDK,null);
+  else { const nd=JSON.parse(pend.data); P.splice(0,P.length,...nd.posts); ORIGD=norm(pend.data); PENDING=true; }
+}
+
+// ---------- stable keys from each post's ORIGINAL fields ----------
 function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36);}
 const ORIG={}, BYKEY={};
+function keyOf(p){return (p.platform==="TikTok"?"tt":"ig")+"-"+p.date.replace(/-/g,"")+"-"+p.time.replace(":","")+"-"+hash(p.platform+"|"+p.title+"|"+p.date+"|"+p.time);}
 P.forEach(p=>{
-  const k=(p.platform==="TikTok"?"tt":"ig")+"-"+p.date.replace(/-/g,"")+"-"+p.time.replace(":","")+"-"+hash(p.platform+"|"+p.title+"|"+p.date+"|"+p.time);
-  p._k=k; BYKEY[k]=p;
+  const k=keyOf(p); p._k=k; BYKEY[k]=p;
   ORIG[k]={date:p.date,time:p.time,timeLabel:p.timeLabel,myt:p.myt,day:p.day,caption:p.caption||"",fbcap:p.fbcap||""};
 });
 
-// ---------- storage ----------
-let E={};
-try{E=JSON.parse(localStorage.getItem(KEY)||"{}")||{};}catch(e){E={};}
-for(const k in E) if(!BYKEY[k]) delete E[k];          // drop edits for posts that no longer exist
-function persist(){try{localStorage.setItem(KEY,JSON.stringify(E));}catch(e){toast("Couldn't save in this browser");}}
-const count=()=>Object.keys(E).length;
+// ---------- storage: edits (E), added posts (A), deleted keys (X) ----------
+let E=ld(KEY,{})||{}, A=ld(ADDK,[])||[], X=new Set(ld(DELK,[])||[]);
+for(const k in E) if(!BYKEY[k]) delete E[k];
+X.forEach(k=>{if(!BYKEY[k])X.delete(k);});
+A.forEach(p=>{p._new=true; BYKEY[p._k]=p; P.push(p);});
+X.forEach(k=>{const i=P.indexOf(BYKEY[k]); if(i>-1)P.splice(i,1);});
+function persist(){sv(KEY,E);sv(ADDK,A.map(strip));sv(DELK,[...X]);}
+function strip(p){const o={};for(const f in p)if(f[0]!=="_"||f==="_k")o[f]=p[f];return o;}
+const nEd=()=>Object.keys(E).length, total=()=>nEd()+A.length+X.size;
 
-// set one field; drop it if it matches the original again, drop the post's edit when empty
 function setF(k,f,v){
+  const p=BYKEY[k];
+  if(p._new){ if(f==="pub") p._pub=v; else p[f]=v; return; }
   const o=ORIG[k]; E[k]=E[k]||{};
   if(f==="pub"){ if(v==null) delete E[k].pub; else E[k].pub=v; }
   else if(v===o[f]) delete E[k][f]; else E[k][f]=v;
@@ -46,6 +65,7 @@ function mytLabel(d,t){ // ET is UTC-5 until 8 Mar, MYT is UTC+8, so MYT = ET + 
 // ---------- apply edits onto the live post objects ----------
 function applyAll(){
   P.forEach(p=>{
+    if(p._new){ p.timeLabel=etLabel(p.time); p.myt=mytLabel(p.date,p.time); return; }
     const o=ORIG[p._k], e=E[p._k]||{};
     p.date=e.date||o.date; p.time=e.time||o.time;
     p.caption=("caption" in e)?e.caption:o.caption;
@@ -54,35 +74,44 @@ function applyAll(){
     else { p.timeLabel=o.timeLabel; p.myt=o.myt; }
     p.day=o.day;
   });
-  // keep TikTok "Post N" in date order once a TikTok has moved
-  if(P.some(p=>p.platform==="TikTok"&&E[p._k]&&(E[p._k].date||E[p._k].time))){
-    P.filter(p=>p.platform==="TikTok").sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).forEach((p,i)=>p.day="Post "+(i+1));
+  // keep TikTok "Post N" in date order once a TikTok has moved, been added or deleted
+  const tt=p=>p.platform==="TikTok";
+  if(P.some(p=>tt(p)&&(p._new||(E[p._k]&&(E[p._k].date||E[p._k].time))))||[...X].some(k=>tt(BYKEY[k]))){
+    P.filter(tt).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).forEach((p,i)=>p.day="Post "+(i+1));
   }
+  P.filter(p=>p._new&&!tt(p)).forEach(p=>p.day=p.day||"Post");
 }
 
 // ---------- hooks into the page ----------
 const _grid=grid, _open=open, _pub=pubState;
 fmt=function(iso){const x=dt(iso);return DOW[(x.getUTCDay()+6)%7]+" "+x.getUTCDate()+" "+MON[x.getUTCMonth()];};
-pubState=function(p){const e=E[p._k];if(e&&e.pub)return [e.pub,DOTNAME[e.pub]];return _pub(p);};
+pubState=function(p){
+  if(p._new&&p._pub) return [p._pub,DOTNAME[p._pub]];
+  const e=E[p._k]; if(e&&e.pub) return [e.pub,DOTNAME[e.pub]];
+  if(p.pub==="none") return ["r","Not scheduled"];
+  return _pub(p);
+};
 grid=function(){
   _grid();
-  // tag each in-month day with its date: in-month days are the non-pad cells, in order, Nov then Dec
   let mi=-1, prev=99;
   document.querySelectorAll("#grid .day:not(.pad)").forEach(d=>{
     const n=+d.querySelector(".dn b").textContent; if(n<prev) mi++; prev=n;
     const [y,m]=MONTHS[mi]; d.dataset.date=y+"-"+pad(m+1)+"-"+pad(n);
+    if(!d.classList.contains("out")) d.insertAdjacentHTML("beforeend",`<button class="addp" type="button" data-date="${d.dataset.date}">+ Add post</button>`);
   });
   document.querySelectorAll("#grid .card").forEach(c=>{
     const p=P.find(x=>x.id===c.dataset.id); if(!p) return;
     c.dataset.k=p._k;
-    const e=E[p._k];
-    if(e){ c.classList.add("ed"); const t=c.querySelector(".t"); if(t&&!c.querySelector(".edt")) t.insertAdjacentHTML("beforebegin",`<span class="edt">Edited</span>`); }
-    if(e&&e.pub){ const d=c.querySelector(".pub"); if(d) d.classList.add("man"); }
+    const tag=p._new?"New":(E[p._k]?"Edited":"");
+    if(tag){ c.classList.add("ed"); const t=c.querySelector(".t"); if(t&&!c.querySelector(".edt")) t.insertAdjacentHTML("beforebegin",`<span class="edt">${tag}</span>`); }
+    if((E[p._k]&&E[p._k].pub)||(p._new&&p._pub)){ const d=c.querySelector(".pub"); if(d) d.classList.add("man"); }
   });
 };
 open=function(id){
+  const p=P.find(x=>x.id===id); if(!p) return;
+  if(p._new&&EDIT){ postForm(p); return; }
   _open(id);
-  const p=P.find(x=>x.id===id); if(!p||!EDIT) return;
+  if(!EDIT) return;
   const e=E[p._k]||{}, o=ORIG[p._k];
   const st=e.pub?DOTNAME[e.pub]:"Automatic ("+_pub(p)[1].toLowerCase()+")";
   const tx=COPYF.filter(([f])=>f==="caption"||o[f]).map(([f,lab])=>`<label class="efl">${lab}${(f in e)?' <span class="edt">Edited</span>':""}<textarea data-f="${f}" rows="${f==="caption"?9:5}">${esc(p[f]||"")}</textarea></label>`).join("");
@@ -92,11 +121,113 @@ open=function(id){
     <label class="efl">Time (ET)<input type="time" data-f="time" value="${p.time}" step="300"></label>
     <label class="efl">Status dot<select data-f="pub"><option value="">Automatic</option><option value="r">Not scheduled</option><option value="y">Scheduled</option><option value="g">Posted</option></select></label></div>
     ${tx}
-    <div class="ebtns"><button class="btn" data-act="save">Save</button><button class="ebtn" data-act="orig"${E[p._k]?"":" disabled"}>Back to original</button><span class="enote">Now: ${esc(st)}${E[p._k]?" · original "+fmt(o.date)+", "+esc(o.timeLabel):""}</span></div>
+    <div class="ebtns"><button class="btn" data-act="save">Save</button><button class="ebtn" data-act="orig"${E[p._k]?"":" disabled"}>Back to original</button><button class="ebtn del" data-act="del">Delete post</button><span class="enote">Now: ${esc(st)}${E[p._k]?" · original "+fmt(o.date)+", "+esc(o.timeLabel):""}</span></div>
   </div>`;
-  const h2=document.querySelector("#dr h2"); h2.insertAdjacentHTML("afterend",html);
+  document.querySelector("#dr h2").insertAdjacentHTML("afterend",html);
   document.querySelector('.eform select[data-f="pub"]').value=e.pub||"";
 };
+
+// ---------- add / edit form for new posts ----------
+function postForm(p,date){
+  const isNew=!p, q=p||{platform:plat,date:date||defDate(),time:"07:00",title:"",pillar:"Entertainment",format:"",status:"To build",caption:"",why:"",todo:[]};
+  const base=q.status.split(" · ")[0], extra=q.status.includes(" · ")?q.status.split(" · ").slice(1).join(" · "):"";
+  const opt=(arr,v)=>arr.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`).join("");
+  $("#dr").innerHTML=`<button class="x" onclick="closeD()">Close</button>
+  <div class="lab">${isNew?"New post":"New post · added on this page"}</div>
+  <h2>${isNew?"Add a post":esc(q.title)}</h2>
+  <div class="eform nform" data-k="${isNew?"":q._k}">
+    <div class="erow"><label class="efl">App<select data-f="platform">${opt(["TikTok","Instagram"],q.platform)}</select></label>
+    <label class="efl">Date<input type="date" data-f="date" value="${q.date}" min="2026-11-01" max="2026-12-31"></label>
+    <label class="efl">Time (ET)<input type="time" data-f="time" value="${q.time}" step="300"></label></div>
+    <label class="efl">Title<input type="text" data-f="title" value="${esc(q.title)}" placeholder="What the post is"></label>
+    <div class="erow"><label class="efl">Pillar<select data-f="pillar">${opt(Object.keys(D.pil),q.pillar)}</select></label>
+    <label class="efl">Status<select data-f="status">${opt(STATUS.map(s=>s[0]),base)}</select></label>
+    <label class="efl">Status note<input type="text" data-f="snote" value="${esc(extra)}" placeholder="e.g. Mon 16"></label></div>
+    <label class="efl">Format<input type="text" data-f="format" value="${esc(q.format)}" placeholder="e.g. Meme · 12 s"></label>
+    <label class="efl">Caption<textarea data-f="caption" rows="8">${esc(q.caption)}</textarea></label>
+    <label class="efl">Why here<textarea data-f="why" rows="3">${esc(q.why)}</textarea></label>
+    <label class="efl">To do (one per line)<textarea data-f="todo" rows="3">${esc((q.todo||[]).join("\n"))}</textarea></label>
+    <div class="ebtns"><button class="btn" data-act="nsave">${isNew?"Add post":"Save"}</button>${isNew?"":`<button class="ebtn del" data-act="del">Delete post</button>`}<span class="enote">Video or slides get attached when Claude bakes it in.</span></div>
+  </div>`;
+  $("#dr").classList.add("on");$("#ov").classList.add("on");$("#dr").scrollTop=0;
+}
+function defDate(){const t=new Date(),d=t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate());return d<"2026-11-01"?"2026-11-01":d>"2026-12-31"?"2026-12-31":d;}
+function saveNew(f){
+  const v=n=>{const el=f.querySelector(`[data-f="${n}"]`);return el?el.value.replace(/\r\n/g,"\n"):"";};
+  const d=v("date"), tm=v("time"), title=v("title").trim();
+  if(!title){toast("Give the post a title");return;}
+  if(!/^2026-1[12]-\d\d$/.test(d)){toast("Pick a date in Nov or Dec 2026");return;}
+  if(!/^\d\d:\d\d$/.test(tm)){toast("Pick a time");return;}
+  const st=v("status"), sc=STATUS.find(s=>s[0]===st)[1], note=v("snote").trim();
+  let p=f.dataset.k?BYKEY[f.dataset.k]:null;
+  if(!p){ const id="N"+Date.now().toString(36); p={id,_k:"new-"+id,_new:true,dep:null,fb:null,fbcap:null,fbimg:null,videos:[],slides:[],reel:null,story:null,extra:null,ctx:"",src:"Added on the page",day:""}; A.push(p); BYKEY[p._k]=p; P.push(p); }
+  Object.assign(p,{platform:v("platform"),date:d,time:tm,title,pillar:v("pillar"),format:v("format").trim()||"New post",
+    status:st+(note?" · "+note:""),scls:sc,caption:v("caption"),why:v("why").trim(),todo:v("todo").split("\n").map(s=>s.trim()).filter(Boolean)});
+  if(st==="Posted") p.pub="posted"; else delete p.pub;
+  persist(); if(p.platform!==plat){plat=p.platform;try{localStorage.setItem("hal_cal2_plat",plat)}catch(e){}}
+  refresh(); closeD(); toast(f.dataset.k?"Saved":"Post added to "+fmt(d));
+}
+function delPost(k){
+  const p=BYKEY[k]; if(!p) return;
+  if(p._new){ A=A.filter(x=>x!==p); delete BYKEY[k]; }
+  else { delete E[k]; X.add(k); }
+  const i=P.indexOf(p); if(i>-1)P.splice(i,1);
+  persist(); closeD(); refresh(); toast("Deleted "+p.title);
+}
+
+// ---------- save to GitHub ----------
+function bakeData(){
+  const d=JSON.parse(ORIGD);
+  d.posts=P.map(p=>{const o={};for(const f in p)if(f[0]!=="_")o[f]=p[f];
+    const e=E[p._k]; if(e&&e.pub) o.pub=PUBVAL[e.pub]; if(p._new&&p._pub) o.pub=PUBVAL[p._pub];
+    return o;});
+  return d;
+}
+const b64dec=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,"")),c=>c.charCodeAt(0)));
+function b64enc(str){const b=new TextEncoder().encode(str);let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
+async function gh(path,opt,tok){
+  const r=await fetch("https://api.github.com/repos/"+REPO+path,Object.assign({},opt,{headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+tok,"Content-Type":"application/json"}}));
+  const j=await r.json().catch(()=>({})); if(!r.ok){const e=new Error(j.message||("HTTP "+r.status));e.status=r.status;throw e;} return j;
+}
+function tokenForm(msg){
+  $("#dr").innerHTML=`<button class="x" onclick="closeD()">Close</button>
+  <div class="lab">Save to GitHub</div><h2>Connect GitHub once</h2>
+  ${msg?`<div class="box">${esc(msg)}</div>`:""}
+  <p style="color:var(--ink2);font-size:14px;line-height:1.6">Saving commits your changes straight into the calendar repo, so every device sees them. It needs a GitHub token, made once:</p>
+  <ol style="color:var(--ink2);font-size:14px;line-height:1.7;padding-left:20px">
+   <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:var(--c)">GitHub, new fine-grained token</a>.</li>
+   <li>Repository access: only <b>HalcyonContentCalendar</b>.</li>
+   <li>Permissions: <b>Contents</b> set to Read and write. Nothing else.</li>
+   <li>Generate it, then paste it below.</li></ol>
+  <div class="eform"><label class="efl">Token<input type="password" id="ghTok" placeholder="github_pat_..." autocomplete="off"></label>
+  <div class="ebtns"><button class="btn" data-act="tok">Save token and commit</button><span class="enote">Kept in this browser only.</span></div></div>`;
+  $("#dr").classList.add("on");$("#ov").classList.add("on");$("#dr").scrollTop=0;
+}
+let SAVING=false;
+async function saveGH(){
+  if(SAVING) return; if(!total()){toast("Nothing to save yet");return;}
+  const tok=ld(TOKK,null); if(!tok){tokenForm();return;}
+  SAVING=true; const b=document.getElementById("eSave"); b.disabled=true; b.textContent="Saving…";
+  try{
+    const cur=await gh("/contents/"+FILE+"?ref="+BRANCH,{method:"GET"},tok);
+    const html=b64dec(cur.content), lines=html.split("\n"), i=lines.findIndex(l=>l.startsWith("const D = "));
+    if(i<0) throw new Error("Couldn't find the calendar data in index.html");
+    if(norm(lines[i].slice(10).replace(/;\s*$/,""))!==ORIGD){
+      toast("The calendar changed on GitHub since you opened it");
+      finishMsg("The calendar on GitHub changed after this page loaded, so nothing was saved. Reload the page (your edits stay in this browser), check them, then save again.",true); return; }
+    const data=bakeData(); lines[i]="const D = "+JSON.stringify(data)+";";
+    const msg=`Calendar edits from the page: ${nEd()} edited, ${A.length} added, ${X.size} deleted`;
+    const res=await gh("/contents/"+FILE,{method:"PUT",body:JSON.stringify({message:msg,content:b64enc(lines.join("\n")),sha:cur.sha,branch:BRANCH})},tok);
+    sv(PENDK,{data:JSON.stringify(data),t:Date.now(),sha:res.commit&&res.commit.sha});
+    sv(KEY,null);sv(ADDK,null);sv(DELK,null);
+    finishMsg("Saved to GitHub. The live page updates in about a minute; until then this browser shows your saved version.");
+    setTimeout(()=>location.reload(),2500);
+  }catch(err){
+    if(err.status===401||err.status===403||err.status===404){sv(TOKK,null);tokenForm("GitHub didn't accept that token ("+err.message+"). Make a new one with Contents read and write on HalcyonContentCalendar.");}
+    else finishMsg("Couldn't save: "+err.message+". Your edits are still kept in this browser.",true);
+  }finally{SAVING=false;b.disabled=false;bar();}
+}
+function finishMsg(t,bad){const n=document.getElementById("emsg");n.textContent=t;n.className="emsg on"+(bad?" bad":"");}
 
 // ---------- styles ----------
 document.head.insertAdjacentHTML("beforeend",`<style>
@@ -107,9 +238,14 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 body.editing .ebar{display:flex}
 .ebar .n{font-weight:600;font-size:14px;margin-right:auto}.ebar .n i{font-style:normal;color:var(--c)}
 .ebar .hint{font-size:12px;color:var(--ink3);flex-basis:100%;order:9}
+.emsg{display:none;flex-basis:100%;order:8;font-size:13px;color:var(--c);padding:6px 0 0}.emsg.on{display:block}.emsg.bad{color:#ff8fa3}
+.pendb{margin:0 0 14px;padding:10px 14px;border:1px dashed rgba(0,251,244,.45);border-radius:12px;font-size:13px;color:var(--ink2)}
 .ebtn{background:transparent;border:1px solid #2b3a41;color:var(--ink);font:500 13px Poppins,sans-serif;padding:7px 14px;border-radius:999px;cursor:pointer}
 .ebtn:hover{border-color:var(--c);color:var(--c)}.ebtn[disabled]{opacity:.4;cursor:default;border-color:#2b3a41;color:var(--ink)}
-.ebtn.warn{border-color:#ff5a6e;color:#ff8fa3}
+.ebtn.warn,.ebtn.del{border-color:#ff5a6e;color:#ff8fa3}.ebtn.del.warn{background:#ff5a6e;color:#1a0005}
+.addp{display:none;width:100%;margin-top:6px;background:transparent;border:1px dashed rgba(0,251,244,.35);color:var(--ink3);font:500 11.5px Poppins,sans-serif;padding:6px 0;border-radius:8px;cursor:pointer}
+.addp:hover{border-color:var(--c);color:var(--c)}
+body.editing .addp{display:block}
 body.editing .card{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
 body.editing .card img{pointer-events:none}
 body.editing .card .pub{width:13px;height:13px;top:6px;right:6px;cursor:pointer}
@@ -132,46 +268,61 @@ body.dragging,body.dragging *{cursor:grabbing!important}
 </style>`);
 
 // ---------- header button and edit bar ----------
-const hdr=document.querySelector("header");
-hdr.insertAdjacentHTML("beforeend",`<div class="hdr-r"><button id="editBtn" type="button">Edit</button></div>`);
-document.querySelector("#v-cal").insertAdjacentHTML("afterbegin",`<div class="ebar" id="ebar">
+document.querySelector("header").insertAdjacentHTML("beforeend",`<div class="hdr-r"><button id="editBtn" type="button">Edit</button></div>`);
+document.querySelector("#v-cal").insertAdjacentHTML("afterbegin",`${PENDING?`<div class="pendb">Showing your last save while GitHub Pages updates. This note goes away once the live page has it.</div>`:""}<div class="ebar" id="ebar">
   <span class="n" id="ecount"></span>
+  <button class="ebtn" id="eAdd" type="button">+ Add post</button>
   <button class="ebtn" id="eCopy" type="button">Copy my edits</button>
-  <button class="ebtn" id="eUndo" type="button">Undo all edits</button>
-  <button class="btn" id="eDone" type="button">Done</button>
-  <span class="hint">Drag a post to another day to move it, or onto another post to swap. Click a dot to change its status. Click a post to edit its date, time and copy.</span>
+  <button class="ebtn" id="eUndo" type="button">Undo all</button>
+  <button class="btn" id="eSave" type="button">Save to GitHub</button>
+  <button class="ebtn" id="eDone" type="button">Done</button>
+  <span class="emsg" id="emsg"></span>
+  <span class="hint">Drag a post to another day to move it, or onto another post to swap. Click a dot to change its status. Click a post to edit or delete it. Use + Add post on any day to add one. Save to GitHub to make it live for everyone.</span>
 </div>`);
 
 let EDIT=false;
-function setEdit(on){EDIT=on;document.body.classList.toggle("editing",on);document.getElementById("editBtn").classList.toggle("on",on);document.getElementById("editBtn").textContent=on?"Editing":"Edit";try{sessionStorage.setItem(MODEK,on?"1":"")}catch(e){}if(!on)disarm();}
-function bar(){const n=count();document.getElementById("ecount").innerHTML=n?`<i>${n}</i> post${n===1?"":"s"} edited`:"No edits yet";
-  document.getElementById("eCopy").disabled=!n;document.getElementById("eUndo").disabled=!n;
-  const b=document.getElementById("editBtn");b.textContent=(EDIT?"Editing":"Edit")+(n&&!EDIT?" · "+n:"");}
+function setEdit(on){EDIT=on;document.body.classList.toggle("editing",on);const b=document.getElementById("editBtn");b.classList.toggle("on",on);try{sessionStorage.setItem(MODEK,on?"1":"")}catch(e){}if(!on)disarm();bar();}
+function bar(){
+  const parts=[];if(nEd())parts.push(`<i>${nEd()}</i> edited`);if(A.length)parts.push(`<i>${A.length}</i> added`);if(X.size)parts.push(`<i>${X.size}</i> deleted`);
+  document.getElementById("ecount").innerHTML=parts.length?parts.join(" · ")+" · not saved yet":"No unsaved changes";
+  const n=total(); document.getElementById("eCopy").disabled=!n;document.getElementById("eUndo").disabled=!n;
+  if(!SAVING){const s=document.getElementById("eSave");s.disabled=!n;s.textContent="Save to GitHub";}
+  document.getElementById("editBtn").textContent=(EDIT?"Editing":"Edit")+(n&&!EDIT?" · "+n+" unsaved":"");
+}
 function refresh(){applyAll();render();bar();}
 
-let armT=null;
-function disarm(){const u=document.getElementById("eUndo");clearTimeout(armT);armT=null;u.classList.remove("warn");u.textContent="Undo all edits";}
+let armT=null, armDel=null;
+function disarm(){const u=document.getElementById("eUndo");clearTimeout(armT);armT=null;u.classList.remove("warn");u.textContent="Undo all";}
 
-// capture-phase click router: runs before any card, nav or tab handler and stops them for our controls
 document.addEventListener("click",ev=>{
   const t=ev.target;
   if(SUPPRESS){ev.stopImmediatePropagation();ev.preventDefault();SUPPRESS=false;return;}
-  if(t.closest("#editBtn")){ev.stopImmediatePropagation();ev.preventDefault();setEdit(!EDIT);bar();return;}
-  if(t.closest("#eDone")){ev.stopImmediatePropagation();setEdit(false);bar();toast(count()?"Edits saved in this browser":"Edit mode off");return;}
+  if(t.closest("#editBtn")){ev.stopImmediatePropagation();ev.preventDefault();setEdit(!EDIT);return;}
+  if(t.closest("#eDone")){ev.stopImmediatePropagation();setEdit(false);toast(total()?"Changes kept in this browser, not saved to GitHub yet":"Edit mode off");return;}
+  if(t.closest("#eSave")){ev.stopImmediatePropagation();saveGH();return;}
+  if(t.closest("#eAdd")){ev.stopImmediatePropagation();postForm(null);return;}
+  if(EDIT&&t.closest(".addp")){ev.stopImmediatePropagation();ev.preventDefault();postForm(null,t.closest(".addp").dataset.date);return;}
   if(t.closest("#eCopy")){ev.stopImmediatePropagation();copy(exportJSON(),"Edits copied, paste them to Claude");return;}
   if(t.closest("#eUndo")){ev.stopImmediatePropagation();
     if(!armT){const u=t.closest("#eUndo");u.classList.add("warn");u.textContent="Click again to undo all";armT=setTimeout(disarm,3500);return;}
-    disarm();E={};persist();closeD();refresh();toast("All edits undone");return;}
+    disarm();sv(KEY,null);sv(ADDK,null);sv(DELK,null);toast("All changes undone");setTimeout(()=>location.reload(),400);return;}
   if(EDIT&&t.closest("#grid .card .pub")){ev.stopImmediatePropagation();ev.preventDefault();
-    const k=t.closest(".card").dataset.k, cur=(E[k]&&E[k].pub)||null, order=[null,"r","y","g"];
+    const k=t.closest(".card").dataset.k, p=BYKEY[k], cur=p._new?(p._pub||null):((E[k]&&E[k].pub)||null), order=[null,"r","y","g"];
     const nx=order[(order.indexOf(cur)+1)%4]; setF(k,"pub",nx); persist(); refresh();
     toast(nx?"Status: "+DOTNAME[nx]:"Status: automatic"); return;}
+  if(t.closest('[data-act="tok"]')){ev.stopImmediatePropagation();const v=(document.getElementById("ghTok").value||"").trim();
+    if(!v){toast("Paste the token first");return;} sv(TOKK,v); closeD(); saveGH(); return;}
   const fb=t.closest(".eform button"); if(fb){ev.stopImmediatePropagation();formAct(fb);return;}
 },true);
 
 function formAct(b){
-  const f=b.closest(".eform"), k=f.dataset.k, p=BYKEY[k];
-  if(b.dataset.act==="orig"){delete E[k];persist();refresh();open(p.id);toast("Back to original");return;}
+  const f=b.closest(".eform"), k=f.dataset.k, act=b.dataset.act;
+  if(act==="nsave"){saveNew(f);return;}
+  if(act==="del"){
+    if(armDel!==b){armDel=b;b.classList.add("warn");b.textContent="Click again to delete";setTimeout(()=>{if(armDel===b){armDel=null;b.classList.remove("warn");b.textContent="Delete post";}},3500);return;}
+    armDel=null; delPost(k); return;}
+  const p=BYKEY[k];
+  if(act==="orig"){delete E[k];persist();refresh();open(p.id);toast("Back to original");return;}
   const v=n=>{const el=f.querySelector(`[data-f="${n}"]`);return el?el.value:null;};
   const d=v("date"), tm=v("time");
   if(!/^2026-1[12]-\d\d$/.test(d||"")){toast("Pick a date in Nov or Dec 2026");return;}
@@ -179,20 +330,22 @@ function formAct(b){
   setF(k,"date",d); setF(k,"time",tm);
   COPYF.forEach(([n])=>{const x=v(n); if(x!==null) setF(k,n,x.replace(/\r\n/g,"\n"));});
   setF(k,"pub",v("pub")||null);
-  persist(); refresh(); open(p.id); toast(E[k]?"Saved":"Matches the original, edit cleared");
+  persist(); refresh(); open(p.id); toast(E[k]?"Saved in this browser":"Matches the original, edit cleared");
 }
 
 function exportJSON(){
-  const out=Object.keys(E).map(k=>{const p=BYKEY[k],o=ORIG[k],e=E[k],ch={};
+  const ed=Object.keys(E).map(k=>{const p=BYKEY[k],o=ORIG[k],e=E[k],ch={};
     for(const f in e) ch[f]=f==="pub"?DOTNAME[e[f]]:e[f];
     return {key:k,id:p.id,platform:p.platform,title:p.title,original:{date:o.date,time:o.time},changes:ch};});
-  return JSON.stringify({calendar:"Halcyon content calendar",exported:new Date().toISOString(),edits:out},null,2);
+  const ad=A.map(p=>{const o=strip(p);delete o._k;return o;});
+  const de=[...X].map(k=>({key:k,id:BYKEY[k].id,platform:BYKEY[k].platform,title:BYKEY[k].title,date:ORIG[k].date}));
+  return JSON.stringify({calendar:"Halcyon content calendar",exported:new Date().toISOString(),edits:ed,added:ad,deleted:de},null,2);
 }
 
 // ---------- drag with pointer events ----------
 let DRG=null, SUPPRESS=false, RAF=0;
 document.addEventListener("pointerdown",ev=>{
-  SUPPRESS=false;                         // a new press always starts clean
+  SUPPRESS=false;
   if(!EDIT||ev.button!==0) return;
   const c=ev.target.closest("#grid .card"); if(!c||ev.target.closest(".pub")) return;
   DRG={c,x:ev.clientX,y:ev.clientY,on:false,ghost:null,tgt:null,id:ev.pointerId};
@@ -218,11 +371,11 @@ function target(x,y){
     const card=el.closest("#grid .card");
     if(card&&card!==DRG.c) t=card;
     else if(!card){const d=el.closest("#grid .day[data-date]"); if(d&&!d.classList.contains("out")) t=d;}
-    else { const d=card.closest(".day"); if(d&&d.dataset.date) t=d; }  // over itself: its own day
+    else { const d=card.closest(".day"); if(d&&d.dataset.date) t=d; }
   }
   if(t!==DRG.tgt){ if(DRG.tgt) DRG.tgt.classList.remove("dropok"); DRG.tgt=t; if(t) t.classList.add("dropok"); }
 }
-function loop(){ // auto-scroll near the top and bottom edges
+function loop(){
   cancelAnimationFrame(RAF);
   const step=()=>{ if(!DRG||!DRG.on) return;
     const y=DRG.cy, h=window.innerHeight, edge=70; let dy=0;
@@ -234,7 +387,7 @@ function loop(){ // auto-scroll near the top and bottom edges
 function endDrag(ev,cancel){
   if(!DRG||(ev&&ev.pointerId!==DRG.id)) return;
   const d=DRG; DRG=null; cancelAnimationFrame(RAF);
-  if(!d.on) return;                       // a plain click: let it open the panel
+  if(!d.on) return;
   SUPPRESS=true; setTimeout(()=>SUPPRESS=false,350);
   d.ghost.remove(); d.c.classList.remove("dragsrc"); document.body.classList.remove("dragging");
   if(d.tgt) d.tgt.classList.remove("dropok");
@@ -257,6 +410,6 @@ document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&DRG&&DRG.on){ co
 
 // ---------- start ----------
 let wasEdit=false; try{wasEdit=sessionStorage.getItem(MODEK)==="1";}catch(e){}
-applyAll(); render(); setEdit(wasEdit); bar();
-window.HAL_EDIT={export:exportJSON,count,edits:()=>JSON.parse(JSON.stringify(E))};
+applyAll(); render(); setEdit(wasEdit);
+window.HAL_EDIT={export:exportJSON,count:total,bake:bakeData};
 })();
