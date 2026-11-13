@@ -1,12 +1,12 @@
-/* Halcyon content calendar · edit mode (v3, 13 Nov 2026)
+/* Halcyon content calendar · editor (v4, 13 Nov 2026), always on
    Loads after index.html's own script and hooks grid(), open(), pubState() and fmt() from outside.
    Edit mode: move, swap, retime and recaption posts, add new posts and delete posts.
-   Changes are kept in this browser until "Save to GitHub" commits them into index.html,
-   which is the calendar's source of truth (GitHub Pages rebuilds in about a minute). */
+   With a GitHub token connected, every change auto-saves (2 s after the last one) by committing
+   index.html, the calendar's source of truth. GitHub Pages rebuilds in about a minute. */
 (function(){
 "use strict";
 const KEY="hal_cal_edits_v1", ADDK="hal_cal_added_v1", DELK="hal_cal_deleted_v1",
-      TOKK="hal_cal_gh_token_v1", PENDK="hal_cal_pending_v1", MODEK="hal_cal_editmode_v1";
+      TOKK="hal_cal_gh_token_v1", PENDK="hal_cal_pending_v1";
 const REPO="gabmiren/HalcyonContentCalendar", BRANCH="main", FILE="index.html";
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DOW7=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -40,9 +40,10 @@ for(const k in E) if(!BYKEY[k]) delete E[k];
 X.forEach(k=>{if(!BYKEY[k])X.delete(k);});
 A.forEach(p=>{p._new=true; BYKEY[p._k]=p; P.push(p);});
 X.forEach(k=>{const i=P.indexOf(BYKEY[k]); if(i>-1)P.splice(i,1);});
-function persist(){sv(KEY,E);sv(ADDK,A.map(strip));sv(DELK,[...X]);}
+function persist(quiet){sv(KEY,E);sv(ADDK,A.map(strip));sv(DELK,[...X]);if(!quiet)schedule();}
 function strip(p){const o={};for(const f in p)if(f[0]!=="_"||f==="_k")o[f]=p[f];return o;}
 const nEd=()=>Object.keys(E).length, total=()=>nEd()+A.length+X.size;
+const dirty=()=>norm(bakeData())!==ORIGD;
 
 function setF(k,f,v){
   const p=BYKEY[k];
@@ -97,7 +98,7 @@ grid=function(){
   document.querySelectorAll("#grid .day:not(.pad)").forEach(d=>{
     const n=+d.querySelector(".dn b").textContent; if(n<prev) mi++; prev=n;
     const [y,m]=MONTHS[mi]; d.dataset.date=y+"-"+pad(m+1)+"-"+pad(n);
-    if(!d.classList.contains("out")) d.insertAdjacentHTML("beforeend",`<button class="addp" type="button" data-date="${d.dataset.date}">+ Add post</button>`);
+    if(!d.classList.contains("out")) d.querySelector(".dn").insertAdjacentHTML("beforeend",`<button class="addp" type="button" data-date="${d.dataset.date}" title="Add a post on this day" aria-label="Add a post">+</button>`);
   });
   document.querySelectorAll("#grid .card").forEach(c=>{
     const p=P.find(x=>x.id===c.dataset.id); if(!p) return;
@@ -109,7 +110,7 @@ grid=function(){
 };
 open=function(id){
   const p=P.find(x=>x.id===id); if(!p) return;
-  if(p._new&&EDIT){ postForm(p); return; }
+  if((p._new||/^N/.test(p.id))&&EDIT){ postForm(p); return; }
   _open(id);
   if(!EDIT) return;
   const e=E[p._k]||{}, o=ORIG[p._k];
@@ -191,62 +192,81 @@ async function gh(path,opt,tok){
 }
 function tokenForm(msg){
   $("#dr").innerHTML=`<button class="x" onclick="closeD()">Close</button>
-  <div class="lab">Save to GitHub</div><h2>Connect GitHub once</h2>
+  <div class="lab">Save to GitHub</div><h2>Turn on auto-save</h2>
   ${msg?`<div class="box">${esc(msg)}</div>`:""}
-  <p style="color:var(--ink2);font-size:14px;line-height:1.6">Saving commits your changes straight into the calendar repo, so every device sees them. It needs a GitHub token, made once:</p>
+  <p style="color:var(--ink2);font-size:14px;line-height:1.6">Once this is on, every change saves itself to the calendar repo a couple of seconds after you make it, so every device sees it. It needs a GitHub token, made once:</p>
   <ol style="color:var(--ink2);font-size:14px;line-height:1.7;padding-left:20px">
    <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:var(--c)">GitHub, new fine-grained token</a>.</li>
    <li>Repository access: only <b>HalcyonContentCalendar</b>.</li>
    <li>Permissions: <b>Contents</b> set to Read and write. Nothing else.</li>
    <li>Generate it, then paste it below.</li></ol>
   <div class="eform"><label class="efl">Token<input type="password" id="ghTok" placeholder="github_pat_..." autocomplete="off"></label>
-  <div class="ebtns"><button class="btn" data-act="tok">Save token and commit</button><span class="enote">Kept in this browser only.</span></div></div>`;
+  <div class="ebtns"><button class="btn" data-act="tok">Turn on auto-save</button><span class="enote">Kept in this browser only.</span></div></div>`;
   $("#dr").classList.add("on");$("#ov").classList.add("on");$("#dr").scrollTop=0;
 }
-let SAVING=false;
-async function saveGH(){
-  if(SAVING) return; if(!total()){toast("Nothing to save yet");return;}
+let SAVING=false, AGAIN=false, TMR=null, BLOCKED=false, STATE="";
+function schedule(){ if(BLOCKED) return; clearTimeout(TMR); if(!ld(TOKK,null)){bar();return;} STATE="waiting"; bar(); TMR=setTimeout(saveGH,2000); }
+function rebase(snap){
+  ORIGD=norm(snap);
+  P.forEach(p=>{const e=E[p._k]; if(e&&e.pub) p.pub=PUBVAL[e.pub]; if(p._new&&p._pub) p.pub=PUBVAL[p._pub]; delete p._new; delete p._pub;});
+  E={}; A=[]; X=new Set();
+  for(const k in BYKEY) delete BYKEY[k]; for(const k in ORIG) delete ORIG[k];
+  P.forEach(p=>{const k=keyOf(p); p._k=k; BYKEY[k]=p; ORIG[k]={date:p.date,time:p.time,timeLabel:p.timeLabel,myt:p.myt,day:p.day,caption:p.caption||"",fbcap:p.fbcap||""};});
+  persist(true);
+}
+async function saveGH(manual){
+  clearTimeout(TMR);
+  if(SAVING){AGAIN=true;return;}
+  if(BLOCKED&&!manual) return;
+  if(!dirty()){ if(manual) toast("Everything is already saved"); STATE=""; bar(); return; }
   const tok=ld(TOKK,null); if(!tok){tokenForm();return;}
-  SAVING=true; const b=document.getElementById("eSave"); b.disabled=true; b.textContent="Saving…";
+  SAVING=true; AGAIN=false; STATE="saving"; bar();
+  const snap=bakeData();
   try{
-    const cur=await gh("/contents/"+FILE+"?ref="+BRANCH,{method:"GET"},tok);
-    const html=b64dec(cur.content), lines=html.split("\n"), i=lines.findIndex(l=>l.startsWith("const D = "));
-    if(i<0) throw new Error("Couldn't find the calendar data in index.html");
-    if(norm(lines[i].slice(10).replace(/;\s*$/,""))!==ORIGD){
-      toast("The calendar changed on GitHub since you opened it");
-      finishMsg("The calendar on GitHub changed after this page loaded, so nothing was saved. Reload the page (your edits stay in this browser), check them, then save again.",true); return; }
-    const data=bakeData(); lines[i]="const D = "+JSON.stringify(data)+";";
-    const msg=`Calendar edits from the page: ${nEd()} edited, ${A.length} added, ${X.size} deleted`;
-    const res=await gh("/contents/"+FILE,{method:"PUT",body:JSON.stringify({message:msg,content:b64enc(lines.join("\n")),sha:cur.sha,branch:BRANCH})},tok);
-    sv(PENDK,{data:JSON.stringify(data),t:Date.now(),sha:res.commit&&res.commit.sha});
-    sv(KEY,null);sv(ADDK,null);sv(DELK,null);
-    finishMsg("Saved to GitHub. The live page updates in about a minute; until then this browser shows your saved version.");
-    setTimeout(()=>location.reload(),2500);
+    let cur=null, html, lines, i;
+    for(let n=0;n<4;n++){ // GitHub's API can lag a moment right after our own commit
+      cur=await gh("/contents/"+FILE+"?ref="+BRANCH+"&t="+Date.now(),{method:"GET",cache:"no-store"},tok);
+      html=b64dec(cur.content); lines=html.split("\n"); i=lines.findIndex(l=>l.startsWith("const D = "));
+      if(i<0) throw new Error("Couldn't find the calendar data in index.html");
+      if(norm(lines[i].slice(10).replace(/;\s*$/,""))===ORIGD) break;
+      if(n===3){ BLOCKED=true; STATE="conflict"; bar();
+        finishMsg("The calendar on GitHub changed after this page loaded, so auto-save has paused. Reload the page; your changes stay in this browser and save again after the reload.",true); return; }
+      await new Promise(r=>setTimeout(r,1500));
+    }
+    lines[i]="const D = "+JSON.stringify(snap)+";";
+    const parts=[];if(nEd())parts.push(nEd()+" edited");if(A.length)parts.push(A.length+" added");if(X.size)parts.push(X.size+" deleted");
+    await gh("/contents/"+FILE,{method:"PUT",body:JSON.stringify({message:"Calendar auto-save from the page"+(parts.length?": "+parts.join(", "):""),content:b64enc(lines.join("\n")),sha:cur.sha,branch:BRANCH})},tok);
+    sv(PENDK,{data:JSON.stringify(snap),t:Date.now()});
+    rebase(snap); STATE="saved"; finishMsg("",false);
+    document.getElementById("emsg").className="emsg";
+    applyAll(); render();
   }catch(err){
-    if(err.status===401||err.status===403||err.status===404){sv(TOKK,null);tokenForm("GitHub didn't accept that token ("+err.message+"). Make a new one with Contents read and write on HalcyonContentCalendar.");}
-    else finishMsg("Couldn't save: "+err.message+". Your edits are still kept in this browser.",true);
-  }finally{SAVING=false;b.disabled=false;bar();}
+    if(err.status===401||err.status===403||err.status===404){sv(TOKK,null);STATE="";tokenForm("GitHub didn't accept that token ("+err.message+"). Make a new one with Contents read and write on HalcyonContentCalendar.");}
+    else if(err.status===409){AGAIN=true;}
+    else {STATE="error"; finishMsg("Couldn't save: "+err.message+". Your changes are kept in this browser; tap Save now to retry.",true);}
+  }finally{SAVING=false; bar(); if(AGAIN||(!BLOCKED&&STATE==="saved"&&dirty())) schedule();}
 }
 function finishMsg(t,bad){const n=document.getElementById("emsg");n.textContent=t;n.className="emsg on"+(bad?" bad":"");}
 
 // ---------- styles ----------
 document.head.insertAdjacentHTML("beforeend",`<style>
 .hdr-r{display:flex;align-items:center;gap:10px}
-#editBtn{background:transparent;border:1px solid var(--c);color:var(--c);font:600 13px Poppins,sans-serif;padding:8px 18px;border-radius:999px;cursor:pointer}
-#editBtn.on{background:var(--c);color:#001514;box-shadow:0 0 18px rgba(0,251,244,.35)}
-.ebar{position:sticky;top:0;z-index:9;display:none;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:10px 14px;background:rgba(14,20,24,.96);border:1px solid rgba(0,251,244,.45);border-radius:12px;box-shadow:0 0 24px rgba(0,251,244,.08);backdrop-filter:blur(6px)}
+.ebar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:10px 14px;background:rgba(14,20,24,.96);border:1px solid rgba(0,251,244,.45);border-radius:12px;box-shadow:0 0 24px rgba(0,251,244,.08);backdrop-filter:blur(6px)}
 body.editing .ebar{display:flex}
 .ebar .n{font-weight:600;font-size:14px;margin-right:auto}.ebar .n i{font-style:normal;color:var(--c)}
 .ebar .hint{font-size:12px;color:var(--ink3);flex-basis:100%;order:9}
+.sstat{font-size:12.5px;color:var(--ink3)}.sstat.saving,.sstat.waiting{color:var(--ink2)}.sstat.error,.sstat.conflict{color:#ff8fa3}
 .emsg{display:none;flex-basis:100%;order:8;font-size:13px;color:var(--c);padding:6px 0 0}.emsg.on{display:block}.emsg.bad{color:#ff8fa3}
 .pendb{margin:0 0 14px;padding:10px 14px;border:1px dashed rgba(0,251,244,.45);border-radius:12px;font-size:13px;color:var(--ink2)}
 .ebtn{background:transparent;border:1px solid #2b3a41;color:var(--ink);font:500 13px Poppins,sans-serif;padding:7px 14px;border-radius:999px;cursor:pointer}
 .ebtn:hover{border-color:var(--c);color:var(--c)}.ebtn[disabled]{opacity:.4;cursor:default;border-color:#2b3a41;color:var(--ink)}
 .ebtn.warn,.ebtn.del{border-color:#ff5a6e;color:#ff8fa3}.ebtn.del.warn{background:#ff5a6e;color:#1a0005}
-.addp{display:none;width:100%;margin-top:6px;background:transparent;border:1px dashed rgba(0,251,244,.35);color:var(--ink3);font:500 11.5px Poppins,sans-serif;padding:6px 0;border-radius:8px;cursor:pointer}
-.addp:hover{border-color:var(--c);color:var(--c)}
-body.editing .addp{display:block}
-body.editing .card{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.day .dn{position:relative}
+.addp{position:absolute;right:0;top:-2px;width:26px;height:26px;border-radius:50%;background:transparent;border:1px solid rgba(0,251,244,.3);color:var(--ink3);font:500 17px/1 Poppins,sans-serif;cursor:pointer;padding:0;opacity:.55;transition:opacity .15s}
+.day:hover .addp,.addp:focus{opacity:1}.addp:hover{border-color:var(--c);color:var(--c)}
+@media (hover:none){.addp{opacity:.8}}
+body.editing .card{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+@media (pointer:fine){body.editing .card{cursor:grab}}
 body.editing .card img{pointer-events:none}
 body.editing .card .pub{width:13px;height:13px;top:6px;right:6px;cursor:pointer}
 body.editing .card .pub::after{content:"";position:absolute;inset:-8px}
@@ -264,42 +284,41 @@ body.dragging,body.dragging *{cursor:grabbing!important}
 .efl input,.efl select,.efl textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:13px/1.5 Poppins,sans-serif;padding:8px 10px;letter-spacing:0;text-transform:none;color-scheme:dark}
 .efl textarea{resize:vertical}.efl input:focus,.efl select:focus,.efl textarea:focus{outline:none;border-color:var(--c)}
 .ebtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.enote{font-size:12px;color:var(--ink3)}
-@media (max-width:600px){.erow{grid-template-columns:1fr}}
+@media (max-width:600px){.erow{grid-template-columns:1fr}.ebar{position:static;padding:8px 12px;gap:8px}.ebar .hint{display:none}}
 </style>`);
 
 // ---------- header button and edit bar ----------
-document.querySelector("header").insertAdjacentHTML("beforeend",`<div class="hdr-r"><button id="editBtn" type="button">Edit</button></div>`);
 document.querySelector("#v-cal").insertAdjacentHTML("afterbegin",`${PENDING?`<div class="pendb">Showing your last save while GitHub Pages updates. This note goes away once the live page has it.</div>`:""}<div class="ebar" id="ebar">
   <span class="n" id="ecount"></span>
   <button class="ebtn" id="eAdd" type="button">+ Add post</button>
   <button class="ebtn" id="eCopy" type="button">Copy my edits</button>
   <button class="ebtn" id="eUndo" type="button">Undo all</button>
-  <button class="btn" id="eSave" type="button">Save to GitHub</button>
-  <button class="ebtn" id="eDone" type="button">Done</button>
+  <span class="sstat" id="sstat"></span><button class="btn" id="eSave" type="button">Save now</button>
   <span class="emsg" id="emsg"></span>
-  <span class="hint">Drag a post to another day to move it, or onto another post to swap. Click a dot to change its status. Click a post to edit or delete it. Use + Add post on any day to add one. Save to GitHub to make it live for everyone.</span>
+  <span class="hint">Drag a post to another day to move it, or onto another post to swap (on a phone, press and hold first). Tap a dot to change its status. Tap a post to edit or delete it. Tap + on any day to add one.</span>
 </div>`);
 
-let EDIT=false;
-function setEdit(on){EDIT=on;document.body.classList.toggle("editing",on);const b=document.getElementById("editBtn");b.classList.toggle("on",on);try{sessionStorage.setItem(MODEK,on?"1":"")}catch(e){}if(!on)disarm();bar();}
+const EDIT=true; document.body.classList.add("editing");
+function disarm(){const u=document.getElementById("eUndo");clearTimeout(armT);armT=null;u.classList.remove("warn");u.textContent="Undo all";}
+let armT=null, armDel=null;
 function bar(){
+  const tok=!!ld(TOKK,null), d=dirty(), st=document.getElementById("sstat"), sb=document.getElementById("eSave");
   const parts=[];if(nEd())parts.push(`<i>${nEd()}</i> edited`);if(A.length)parts.push(`<i>${A.length}</i> added`);if(X.size)parts.push(`<i>${X.size}</i> deleted`);
-  document.getElementById("ecount").innerHTML=parts.length?parts.join(" · ")+" · not saved yet":"No unsaved changes";
-  const n=total(); document.getElementById("eCopy").disabled=!n;document.getElementById("eUndo").disabled=!n;
-  if(!SAVING){const s=document.getElementById("eSave");s.disabled=!n;s.textContent="Save to GitHub";}
-  document.getElementById("editBtn").textContent=(EDIT?"Editing":"Edit")+(n&&!EDIT?" · "+n+" unsaved":"");
+  document.getElementById("ecount").innerHTML=tok?"Auto-save on":(parts.length?parts.join(" · ")+" · not saved yet":"Auto-save off");
+  st.className="sstat "+(STATE||"");
+  st.textContent=!tok?"":STATE==="saving"?"Saving…":STATE==="waiting"?"Saving in a moment…":STATE==="conflict"?"Paused, reload the page":STATE==="error"?"Not saved":d?"Unsaved changes":"All changes saved";
+  sb.textContent=tok?"Save now":"Turn on auto-save"; sb.disabled=SAVING||(tok&&!d&&STATE!=="error");
+  sb.style.display=(tok&&!d&&STATE!=="error")?"none":"";
+  document.getElementById("eCopy").disabled=!total(); document.getElementById("eUndo").disabled=!total();
+  const lc=!tok&&total(); document.getElementById("eCopy").style.display=document.getElementById("eUndo").style.display=lc?"":"none";
 }
 function refresh(){applyAll();render();bar();}
 
-let armT=null, armDel=null;
-function disarm(){const u=document.getElementById("eUndo");clearTimeout(armT);armT=null;u.classList.remove("warn");u.textContent="Undo all";}
 
 document.addEventListener("click",ev=>{
   const t=ev.target;
   if(SUPPRESS){ev.stopImmediatePropagation();ev.preventDefault();SUPPRESS=false;return;}
-  if(t.closest("#editBtn")){ev.stopImmediatePropagation();ev.preventDefault();setEdit(!EDIT);return;}
-  if(t.closest("#eDone")){ev.stopImmediatePropagation();setEdit(false);toast(total()?"Changes kept in this browser, not saved to GitHub yet":"Edit mode off");return;}
-  if(t.closest("#eSave")){ev.stopImmediatePropagation();saveGH();return;}
+  if(t.closest("#eSave")){ev.stopImmediatePropagation();if(!ld(TOKK,null))tokenForm();else saveGH(true);return;}
   if(t.closest("#eAdd")){ev.stopImmediatePropagation();postForm(null);return;}
   if(EDIT&&t.closest(".addp")){ev.stopImmediatePropagation();ev.preventDefault();postForm(null,t.closest(".addp").dataset.date);return;}
   if(t.closest("#eCopy")){ev.stopImmediatePropagation();copy(exportJSON(),"Edits copied, paste them to Claude");return;}
@@ -311,7 +330,7 @@ document.addEventListener("click",ev=>{
     const nx=order[(order.indexOf(cur)+1)%4]; setF(k,"pub",nx); persist(); refresh();
     toast(nx?"Status: "+DOTNAME[nx]:"Status: automatic"); return;}
   if(t.closest('[data-act="tok"]')){ev.stopImmediatePropagation();const v=(document.getElementById("ghTok").value||"").trim();
-    if(!v){toast("Paste the token first");return;} sv(TOKK,v); closeD(); saveGH(); return;}
+    if(!v){toast("Paste the token first");return;} sv(TOKK,v); closeD(); toast("Auto-save is on"); saveGH(true); return;}
   const fb=t.closest(".eform button"); if(fb){ev.stopImmediatePropagation();formAct(fb);return;}
 },true);
 
@@ -344,27 +363,36 @@ function exportJSON(){
 
 // ---------- drag with pointer events ----------
 let DRG=null, SUPPRESS=false, RAF=0;
+function startGhost(){
+  const r=DRG.c.getBoundingClientRect(), g=DRG.c.cloneNode(true);
+  g.classList.add("dghost"); g.style.setProperty("--w",r.width+"px");
+  DRG.ox=DRG.x-r.left; DRG.oy=DRG.y-r.top; document.body.appendChild(g);
+  g.style.left=(DRG.x-DRG.ox)+"px"; g.style.top=(DRG.y-DRG.oy)+"px";
+  DRG.ghost=g; DRG.on=true; DRG.c.classList.add("dragsrc"); document.body.classList.add("dragging");
+  DRG.cx=DRG.x; DRG.cy=DRG.y; target(DRG.x,DRG.y); loop();
+}
 document.addEventListener("pointerdown",ev=>{
   SUPPRESS=false;
-  if(!EDIT||ev.button!==0) return;
+  if(ev.button!==0) return;
   const c=ev.target.closest("#grid .card"); if(!c||ev.target.closest(".pub")) return;
-  DRG={c,x:ev.clientX,y:ev.clientY,on:false,ghost:null,tgt:null,id:ev.pointerId};
+  DRG={c,x:ev.clientX,y:ev.clientY,on:false,ghost:null,tgt:null,id:ev.pointerId,touch:ev.pointerType!=="mouse"};
+  if(DRG.touch){ const d=DRG; d.lt=setTimeout(()=>{ if(DRG!==d) return; if(navigator.vibrate)navigator.vibrate(12); startGhost(); },380); }
 });
 document.addEventListener("pointermove",ev=>{
   if(!DRG||ev.pointerId!==DRG.id) return;
   if(!DRG.on){
-    if(Math.hypot(ev.clientX-DRG.x,ev.clientY-DRG.y)<6) return;
-    const r=DRG.c.getBoundingClientRect(), g=DRG.c.cloneNode(true);
-    g.classList.add("dghost"); g.style.setProperty("--w",r.width+"px");
-    DRG.ox=DRG.x-r.left; DRG.oy=DRG.y-r.top; document.body.appendChild(g);
-    DRG.ghost=g; DRG.on=true; DRG.c.classList.add("dragsrc"); document.body.classList.add("dragging");
-    loop();
+    const far=Math.hypot(ev.clientX-DRG.x,ev.clientY-DRG.y);
+    if(DRG.touch){ if(far>8){clearTimeout(DRG.lt);DRG=null;} return; }  // a swipe: let the page scroll
+    if(far<6) return;
+    startGhost();
   }
   ev.preventDefault();
   DRG.cx=ev.clientX; DRG.cy=ev.clientY;
   DRG.ghost.style.left=(ev.clientX-DRG.ox)+"px"; DRG.ghost.style.top=(ev.clientY-DRG.oy)+"px";
   target(ev.clientX,ev.clientY);
 },{passive:false});
+document.addEventListener("touchmove",ev=>{ if(DRG&&DRG.on) ev.preventDefault(); },{passive:false});
+document.addEventListener("contextmenu",ev=>{ if(ev.target.closest&&ev.target.closest("#grid .card")) ev.preventDefault(); });
 function target(x,y){
   const el=document.elementFromPoint(x,y); let t=null;
   if(el){
@@ -386,7 +414,7 @@ function loop(){
 }
 function endDrag(ev,cancel){
   if(!DRG||(ev&&ev.pointerId!==DRG.id)) return;
-  const d=DRG; DRG=null; cancelAnimationFrame(RAF);
+  const d=DRG; DRG=null; cancelAnimationFrame(RAF); clearTimeout(d.lt);
   if(!d.on) return;
   SUPPRESS=true; setTimeout(()=>SUPPRESS=false,350);
   d.ghost.remove(); d.c.classList.remove("dragsrc"); document.body.classList.remove("dragging");
@@ -409,7 +437,6 @@ document.addEventListener("pointercancel",ev=>endDrag(ev,true));
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&DRG&&DRG.on){ const id=DRG.id; endDrag({pointerId:id},true); } });
 
 // ---------- start ----------
-let wasEdit=false; try{wasEdit=sessionStorage.getItem(MODEK)==="1";}catch(e){}
-applyAll(); render(); setEdit(wasEdit);
+applyAll(); render(); bar();
 window.HAL_EDIT={export:exportJSON,count:total,bake:bakeData};
 })();

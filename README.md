@@ -4,8 +4,6 @@ TikTok and Instagram posting calendar for Halcyon Trader Funding, Fri 6 to Fri 2
 
 ## Editing on screen
 
-Click **Edit** in the header. Drag a post to another day to move it, or drop it on another post on the same app to swap their dates and times. Click a status dot to cycle not scheduled, scheduled, posted and automatic. Click a post to change its date, time and copy in the side panel.
+The calendar is always editable. Drag a post to another day to move it, or onto another post on the same app to swap them (on a phone, press and hold first). Tap a status dot to cycle not scheduled, scheduled, posted and automatic. Tap a post to change its date, time and copy, or to delete it. Tap **+** on any day, or **+ Add post** in the bar, to add a post.
 
-Use **+ Add post** (on any day, or in the edit bar) to add a post, and **Delete post** in a post's panel to remove it.
-
-Changes wait in that browser until you click **Save to GitHub**, which commits them into `index.html`. This repo is the calendar's source of truth, and GitHub Pages shows the change about a minute later. The first save asks for a fine-grained GitHub token with Contents read and write on this repo only; it stays in that browser. **Copy my edits** still copies the changes as JSON for Claude, for example to attach a video to a new post. The editor lives in `edit.js`. The page before the editor was added is kept in `versions/`.
+Changes auto-save: a couple of seconds after each change the page commits it into `index.html` here, which is the calendar's source of truth, and GitHub Pages shows it about a minute later. Turning auto-save on needs a fine-grained GitHub token with Contents read and write on this repo only, entered once per browser. If the repo changed after the page loaded, auto-save pauses and asks for a reload instead of overwriting. The editor lives in `edit.js`; the page before the editor was added is kept in `versions/`.
