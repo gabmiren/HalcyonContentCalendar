@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../kit.css">
+<title>Market mood single (kit v2 template)</title>
+<style>
+.rows{position:absolute;left:80px;right:80px;top:516px}
+.r{display:grid;grid-template-columns:230px 1fr 170px;align-items:center;height:96px;border-bottom:1.5px solid var(--line)}
+.r:last-child{border-bottom:0}
+.mk{font-size:36px;font-weight:600}
+.md{font-size:28px;color:var(--grey);margin-top:2px}
+.track{position:relative;height:40px}
+.zero{position:absolute;top:-30px;bottom:-30px;width:2px;background:rgba(175,175,175,.35)}
+.bar{position:absolute;top:6px;height:28px;border-radius:6px}
+.bar.up{background:var(--cyan-t16);border:3px solid var(--cyan)}
+.bar.dn{background:rgba(175,175,175,.74)}
+.val{font-size:40px;font-weight:700;text-align:right;letter-spacing:-.02em}
+.r.worst .mk::after{content:"";display:inline-block;margin-left:14px;width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:16px solid var(--grey);vertical-align:middle}
+</style></head><body>
+<!-- EDIT ONLY THIS BLOCK on the day. Moves in percent; mark the row the headline story is about with worst:true; a row with "bar": false shows its value without a bar (e.g. yields in bps). -->
+<script>
+const MOOD = {
+  name: "mdCPI2",
+  kicker: "Tue 10 Nov · CPI day",
+  headline: 'How every market\'s <span class="c">CPI morning</span> went',
+  sub: "October CPI came in hot: +0.4% on the month vs +0.3% expected.",
+  rows: [
+    {m:"Dow", mood:"Least bruised", v:-0.37},
+    {m:"S&P 500", mood:"Feeling it", v:-0.74},
+    {m:"Nasdaq", mood:"Worst morning", v:-1.05, worst:true},
+    {m:"Gold", mood:"Slipped too", v:-0.69},
+    {m:"Oil", mood:"Still sliding", v:-3.0, approx:true},
+    {m:"10-yr yield", mood:"Up and away", v:"+7 bps", bar:false}
+  ],
+  source: "Moves near the 9:30 AM ET open. Bars drawn to scale. Sources: CNBC, TheStreet, Yahoo Finance."
+};
+</script>
+<section class="slide" id="s" data-pg="end">
+  <div class="kick" id="k"></div>
+  <div class="h-slide" id="h" style="font-size:80px"></div>
+  <div class="body" id="sub" style="position:absolute;left:80px;right:80px;top:392px;font-size:30px"></div>
+  <div class="rows" id="rows"></div>
+  <div class="note" id="src" style="top:1120px"></div>
+</section>
+<script>
+document.getElementById('s').dataset.name = MOOD.name;
+k.textContent = MOOD.kicker; h.innerHTML = MOOD.headline; sub.textContent = MOOD.sub; src.textContent = MOOD.source;
+const nums = MOOD.rows.filter(r => r.bar !== false).map(r => r.v);
+const maxAbs = Math.max(...nums.map(Math.abs)), hasUp = nums.some(v => v > 0), hasDn = nums.some(v => v < 0);
+const W = 480, zero = hasUp && hasDn ? W / 2 : (hasDn ? W : 0), scale = (hasUp && hasDn ? W / 2 : W) / maxAbs;
+for (const r of MOOD.rows) {
+  const isNum = r.bar !== false, v = r.v;
+  const fmt = isNum ? (r.approx ? "≈" : "") + (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(Math.abs(v) >= 1 && r.approx ? 0 : 2) + "%" : v;
+  let bar = "";
+  if (isNum) { const w = Math.abs(v) * scale, left = v >= 0 ? zero : zero - w;
+    bar = `<div class="zero" style="left:${zero}px"></div><div class="bar ${v >= 0 ? 'up' : 'dn'}" style="left:${left}px;width:${Math.max(w, 6)}px"></div>`; }
+  rows.insertAdjacentHTML('beforeend', `<div class="r ${r.worst ? 'worst' : ''}"><div><div class="mk">${r.m}</div><div class="md">${r.mood}</div></div>
+    <div class="track" style="width:${W}px">${bar}</div><div class="val ${isNum && v > 0 ? 'c' : ''}">${fmt}</div></div>`);
+}
+</script>
+</body></html>

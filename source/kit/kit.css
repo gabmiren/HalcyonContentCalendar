@@ -1,0 +1,42 @@
+/* Halcyon kit v2: reads the Halcyon Design System v2 tokens (claude.ai/artifact/DecqvQTqwhzGq8qp65G7V6).
+   Feed 1080x1350, story/cover 1080x1920. Poppins only, one accent. */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+:root{
+  --ground:#0B0C0D;--surface-1:#101518;--surface-2:#171D21;--line:rgba(175,175,175,.22);
+  --ink:#F2F2F2;--grey:#AFAFAF;--grey-dim:#7E8787;
+  --cyan:#00FBF4;--cyan-80:#5FFFF9;--cyan-ink:#04100F;--cyan-t8:rgba(0,251,244,.08);--cyan-t16:rgba(0,251,244,.16);
+  --cyan-line:rgba(0,251,244,.35);--cyan-glow:rgba(0,251,244,.45);
+  --glow-sm:0 0 16px rgba(0,251,244,.35);--glow-md:0 0 32px rgba(0,251,244,.45);--glow-lg:0 0 90px rgba(0,251,244,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#222;font-family:"Poppins",system-ui,sans-serif;color:var(--ink)}
+.slide{width:1080px;height:1350px;position:relative;overflow:hidden;
+  background:radial-gradient(1200px 760px at 50% -12%,rgba(0,251,244,.10),transparent 70%),var(--ground)}
+.slide.tall{height:1920px}
+.slide.tall .foot{bottom:484px}
+/* zones */
+.kick{position:absolute;left:80px;top:136px;font-size:26px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--grey)}
+.h-cover{position:absolute;left:80px;right:80px;top:188px;font-size:108px;font-weight:700;letter-spacing:-.03em;line-height:1.04}
+.h-slide{position:absolute;left:80px;right:80px;top:188px;font-size:76px;font-weight:700;letter-spacing:-.03em;line-height:1.08}
+.hero{position:absolute;left:80px;right:80px;top:440px;height:650px}
+.note{position:absolute;left:80px;right:80px;top:1100px;font-size:24px;line-height:1.4;color:var(--grey)}
+.body{font-size:35px;line-height:1.4;color:var(--grey)}
+.body b{color:var(--ink);font-weight:600}
+.c{color:var(--cyan)} .g{color:var(--grey)} .ink{color:var(--ink)}
+.num{font-weight:700;letter-spacing:-.04em;line-height:1}
+.label{font-size:26px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--grey)}
+/* footer */
+.foot{position:absolute;left:80px;right:80px;bottom:56px;height:48px;display:flex;align-items:center;justify-content:space-between}
+.lock{display:flex;align-items:center;gap:14px}.lock .m{height:48px}.lock .w{height:31px}
+.pg{font-size:24px;color:var(--grey);display:flex;gap:18px;align-items:center}
+/* pills */
+.pill{height:64px;padding:0 30px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;white-space:nowrap}
+.pill.fill{background:linear-gradient(var(--cyan-80),var(--cyan));color:var(--cyan-ink);box-shadow:var(--glow-md)}
+.pill.out{border:2px solid var(--cyan-line);background:linear-gradient(var(--cyan-t8),var(--cyan-t8)),var(--surface-1);color:var(--cyan)}
+.pill.quiet{background:var(--surface-2);color:var(--grey)}
+/* rule strip */
+.rule{position:absolute;left:80px;right:80px;border:1.5px solid var(--cyan-line);background:var(--surface-1);border-radius:20px;padding:30px 32px}
+.rule .label{color:var(--cyan)} .rule p{font-size:34px;margin-top:10px;line-height:1.35}
+.rule p b{font-weight:600}
+.disc{position:absolute;left:80px;max-width:760px;font-size:26px;line-height:1.45;color:var(--grey)}
+.example{font-size:28px;font-weight:600;letter-spacing:.16em;color:var(--grey)}
