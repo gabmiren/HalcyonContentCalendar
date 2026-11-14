@@ -22,6 +22,14 @@ locally or loaded from Google Fonts.
   sub, rows (percent moves; `worst:true` on the row the story is about; `bar:false` for bps) and
   sources. Bars are drawn to scale automatically. `examples/mdCPI2.jpg` is the 10 Nov post rebuilt.
 
+- `sets/ptA.html` Your $2,000 drawdown in points (5 slides, Fri 20 Nov).
+- `sets/udA.html` Up or down? chart quiz (5 slides, Mon 23 Nov). Candles are drawn from the arrays at the top.
+- `sets/thB.html` Thanksgiving and Black Friday hours singles (thB_thu, thB_fri).
+- `sets/teA.html` Trailing or end of day? (5 slides, Sat 28 Nov, needs Halcyon).
+- `sets/wkD.html` This week: the jobs report is back Friday (5 slides, Sun 29 Nov).
+- `sets/rcA.html` Reel covers and first frames for 23 to 28 Nov (rc_check, rc_dinner, rc_pce, rc_same, 1080 x 1920).
+- `../plan_16_29_nov.py` the script that wrote the 16 to 29 Nov plan into index.html (already run).
+
 ## Rules the kit bakes in
 
 Feed grid (80 px margins, header y 136 to 420, hero y 440 to 1090, footer bottom y 1294), Poppins only,

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../kit.css">
+<title>udA · Up or down? chart quiz (kit v2)</title>
+<style>
+.ch{position:absolute;left:80px}
+.row4{position:absolute;left:80px;right:80px;display:flex;gap:28px;align-items:flex-start}
+.row4 .n{flex:none;width:72px;height:72px;border-radius:36px;border:3px solid var(--cyan);color:var(--cyan);font-size:34px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.row4 p{font-size:38px;line-height:1.35;color:var(--grey);padding-top:10px}
+.row4 p b{color:var(--ink);font-weight:600}
+</style></head><body>
+<script>
+// EXAMPLE candles (illustration only). o,h,l,c in points from the 8:25 level.
+const PRE=[[0,10,-8,6],[6,14,-2,-3],[-3,6,-12,4],[4,12,-4,8],[8,13,-3,1]];
+const SPIKE=[[1,46,-3,39]];
+const POST=[[39,42,8,12],[12,20,-14,-9],[-9,-3,-30,-22],[-22,-12,-34,-18],[-18,-14,-27,-22]];
+function chart(id,cs,o){ // o: {w,h,q:number of '?' slots,labels:[]}
+  const W=o.w,H=o.h,pad=30,n=cs.length+(o.q||0),step=(W-pad*2)/n,cw=Math.min(70,step*.72);
+  const lo=-38,hi=50,Y=v=>pad+(hi-v)/(hi-lo)*(H-pad*2);
+  let g=`<line x1="0" y1="${Y(0)}" x2="${W}" y2="${Y(0)}" stroke="rgba(175,175,175,.22)" stroke-width="2" stroke-dasharray="8 10"/>`;
+  cs.forEach((c,i)=>{const x=pad+step*i+step/2,up=c[3]>=c[0];
+    g+=`<line x1="${x}" y1="${Y(c[1])}" x2="${x}" y2="${Y(c[2])}" stroke="${up?'#00FBF4':'rgba(175,175,175,.74)'}" stroke-width="3"/>`;
+    const y1=Y(Math.max(c[0],c[3])),y2=Y(Math.min(c[0],c[3]));
+    g+=up?`<rect x="${x-cw/2}" y="${y1}" width="${cw}" height="${Math.max(6,y2-y1)}" rx="3" fill="rgba(0,251,244,.08)" stroke="#00FBF4" stroke-width="3"/>`
+         :`<rect x="${x-cw/2}" y="${y1}" width="${cw}" height="${Math.max(6,y2-y1)}" rx="3" fill="rgba(175,175,175,.74)"/>`;});
+  for(let i=0;i<(o.q||0);i++){const x=pad+step*(cs.length+i)+step/2;
+    g+=`<rect x="${x-cw/2}" y="${Y(30)}" width="${cw}" height="${Y(-20)-Y(30)}" rx="6" fill="none" stroke="rgba(175,175,175,.5)" stroke-width="2.5" stroke-dasharray="10 9"/>`;}
+  (o.marks||[]).forEach(m=>{const x=pad+step*m.i+step/2;
+    g+=`<line x1="${x-step/2}" y1="${pad-10}" x2="${x-step/2}" y2="${H-pad+10}" stroke="rgba(175,175,175,.45)" stroke-width="2"/><text x="${x-step/2+12}" y="${m.y||pad+14}" font-family="Poppins" font-size="26" font-weight="600" fill="#AFAFAF" letter-spacing="2">${m.t}</text>`;});
+  (o.tags||[]).forEach(t=>{g+=`<text x="${t.x}" y="${t.y}" font-family="Poppins" font-size="${t.s||34}" font-weight="700" fill="${t.c||'#F2F2F2'}" text-anchor="${t.a||'start'}">${t.t}</text>`;});
+  document.getElementById(id).innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" fill="none">${g}</svg>`;
+}
+</script>
+
+<!-- 1 · Cover -->
+<section class="slide" data-pg="1/5">
+  <div class="kick">Chart quiz · NQ, 5 min</div>
+  <div class="h-cover">Up or down <span class="c">from here?</span></div>
+  <div class="example" style="position:absolute;right:80px;top:452px">EXAMPLE</div>
+  <div class="ch" id="c1" style="top:480px"></div>
+  <div class="label" style="position:absolute;left:80px;top:1112px;color:var(--ink)">Comment your call, then swipe</div>
+</section>
+
+<!-- 2 · Reveal -->
+<section class="slide" data-pg="2/5">
+  <div class="kick">The reveal</div>
+  <div class="h-slide">The first candle <span class="c">faked the move</span></div>
+  <div class="example" style="position:absolute;right:80px;top:452px">EXAMPLE</div>
+  <div class="ch" id="c2" style="top:480px"></div>
+  <div class="note" style="top:1108px">Illustration with made-up prices, not real market data. Moves in NQ points.</div>
+</section>
+
+<!-- 3 · Why -->
+<section class="slide" data-pg="3/5">
+  <div class="kick">Why it happens</div>
+  <div class="h-slide">The first candle after news <span class="c">can lie</span></div>
+  <div class="row4" style="top:490px"><div class="n">1</div><p><b>Orders thin out</b> in the seconds around a release, so price jumps further on less.</p></div>
+  <div class="row4" style="top:700px"><div class="n">2</div><p><b>Stops sit on both sides</b>, and a fast spike can reach them before the real move starts.</p></div>
+  <div class="row4" style="top:910px"><div class="n">3</div><p><b>Some traders wait</b> for the first 5-minute candle to close before they decide anything.</p></div>
+</section>
+
+<!-- 4 · What you control -->
+<section class="slide" data-pg="4/5">
+  <div class="kick">What you control</div>
+  <div class="h-slide">That spike was <span class="c">38%</span> of a drawdown</div>
+  <div class="example" style="position:absolute;right:80px;top:452px">EXAMPLE</div>
+  <div style="position:absolute;left:80px;right:80px;top:500px;display:flex;justify-content:space-between" class="label"><span>38 points on 1 NQ</span><span>100 points = $2,000</span></div>
+  <div style="position:absolute;left:80px;right:80px;top:556px;height:64px;border-radius:14px;border:2.5px solid rgba(175,175,175,.5);overflow:hidden"><div style="width:38%;height:100%;background:var(--cyan-t16);border-right:4px solid var(--cyan)"></div></div>
+  <div class="body" style="position:absolute;left:80px;right:80px;top:670px">One 5-minute candle, on one contract. Knowing your drawdown in points tells you how many of those you can sit through.</div>
+  <div class="rule" style="top:900px"><div class="label">Halcyon rule</div><p><b>News straddles</b> around releases are banned. So is trading without a stop loss.</p></div>
+</section>
+
+<!-- 5 · End -->
+<section class="slide" data-pg="end 5/5">
+  <div style="position:absolute;left:80px;right:80px;top:170px;font-size:84px;font-weight:700;letter-spacing:-.03em;line-height:1.08">Did you call it <span class="c">right?</span></div>
+  <div class="ch" id="c5" style="top:420px"></div>
+  <div style="position:absolute;left:80px;top:800px"><span class="pill fill">Tell us in our Discord</span><div class="label" style="margin-top:20px">Link in bio</div></div>
+  <div class="disc" style="top:990px">Example chart for illustration, not real market data. Halcyon offers simulated educational accounts. Results not guaranteed. T&amp;C apply.</div>
+</section>
+<script>
+chart('c1',PRE.concat(SPIKE),{w:920,h:600,q:4,marks:[{i:5,t:''}],tags:[{x:425,y:62,t:'8:30 release',c:'#AFAFAF',a:'end',s:30},{x:440,y:110,t:'+38 pts in 5 min',c:'#00FBF4',a:'end',s:38},{x:742,y:370,t:'?',s:150,c:'#AFAFAF',a:'middle'}]});
+chart('c2',PRE.concat(SPIKE,POST),{w:920,h:600,marks:[{i:5,t:''}],tags:[{x:425,y:62,t:'8:30 release',c:'#AFAFAF',a:'end',s:30},{x:425,y:110,t:'+38 pts',c:'#00FBF4',a:'end',s:38},{x:20,y:560,t:'Then 61 pts lower by 8:55',s:36}]});
+chart('c5',PRE.concat(SPIKE,POST),{w:920,h:330});
+</script>
+</body></html>

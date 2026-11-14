@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../kit.css">
+<title>ptA · Your $2,000 drawdown in points (kit v2)</title>
+<style>
+.br{position:absolute;left:80px;right:80px;height:130px}
+.br .nm{font-size:34px;font-weight:600}
+.br .nm span{color:var(--grey);font-weight:400}
+.br .b{position:absolute;left:0;top:60px;height:48px;border-radius:8px}
+.br .b.c1{background:var(--cyan-t16);border:3px solid var(--cyan)}
+.br .b.g1{background:rgba(175,175,175,.12);border:3px solid rgba(175,175,175,.8)}
+.br .v{position:absolute;top:56px;font-size:40px;font-weight:700;letter-spacing:-.02em}
+.big{position:absolute;left:80px;font-size:300px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--cyan)}
+.unit{position:absolute;font-size:64px;font-weight:700;letter-spacing:-.02em}
+.cmp{position:absolute;left:80px;right:80px}
+.cmp .t{font-size:30px;color:var(--grey);margin-bottom:10px}
+.cmp .b{height:44px;border-radius:8px}
+.tile2{position:absolute;width:440px}
+.tile2 .v{font-size:220px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.tile2 .t{font-size:34px;color:var(--grey);margin-top:12px;line-height:1.35}
+.blk5{position:absolute;left:80px;display:flex;gap:16px}
+.blk5 i{display:block;width:64px;height:64px;border:3px solid var(--cyan);background:var(--cyan-t8);border-radius:10px}
+.rc{position:absolute;text-align:center;width:220px}
+.rc .v{font-size:44px;font-weight:700;letter-spacing:-.02em}
+.rc .t{font-size:26px;color:var(--grey);margin-top:6px}
+</style></head><body>
+
+<!-- 1 · Cover -->
+<section class="slide" data-pg="1/5">
+  <div class="kick">Your drawdown in points</div>
+  <div class="h-cover">$2,000 is only <span class="c">40 ES points</span></div>
+  <div class="br" style="top:500px"><div class="nm">1 ES <span>· $50 a point</span></div><div class="b c1" style="width:37px"></div><div class="v c" style="left:60px">40 pts</div></div>
+  <div class="br" style="top:646px"><div class="nm">1 NQ <span>· $20 a point</span></div><div class="b g1" style="width:92px"></div><div class="v" style="left:116px">100 pts</div></div>
+  <div class="br" style="top:792px"><div class="nm">1 MES <span>· $5 a point</span></div><div class="b g1" style="width:368px"></div><div class="v" style="left:392px">400 pts</div></div>
+  <div class="br" style="top:938px"><div class="nm">1 MNQ <span>· $2 a point</span></div><div class="b g1" style="width:700px"></div><div class="v" style="left:724px">1,000</div></div>
+  <div class="note" style="top:1108px">How far each contract can move against you before a $2,000 max drawdown is gone. Bars to scale.</div>
+</section>
+
+<!-- 2 · ES -->
+<section class="slide" data-pg="2/5">
+  <div class="kick">S&amp;P 500 futures</div>
+  <div class="h-slide">On one ES, your room is <span class="c">40 points</span></div>
+  <div style="position:absolute;left:80px;top:420px;display:flex;align-items:baseline;gap:28px"><span class="num c" style="font-size:300px">40</span><span style="font-size:64px;font-weight:700;letter-spacing:-.02em">points</span></div>
+  <div class="body" style="position:absolute;left:80px;right:80px;top:770px">1 ES moves <b>$50 a point</b>, so a $2,000 max drawdown is 40 points.</div>
+  <div class="cmp" style="top:890px"><div class="t">1 ES · 40 points</div><div class="b" style="width:92px;background:var(--cyan-t16);border:3px solid var(--cyan)"></div></div>
+  <div class="cmp" style="top:1010px"><div class="t">1 MES ($5 a point) · 400 points</div><div class="b" style="width:920px;background:rgba(175,175,175,.12);border:3px solid rgba(175,175,175,.8)"></div></div>
+</section>
+
+<!-- 3 · NQ -->
+<section class="slide" data-pg="3/5">
+  <div class="kick">Nasdaq 100 futures</div>
+  <div class="h-slide">On one NQ, your room is <span class="c">100 points</span></div>
+  <div style="position:absolute;left:80px;top:420px;display:flex;align-items:baseline;gap:28px"><span class="num c" style="font-size:300px">100</span><span style="font-size:64px;font-weight:700;letter-spacing:-.02em">points</span></div>
+  <div class="body" style="position:absolute;left:80px;right:80px;top:770px">1 NQ moves <b>$20 a point</b>, so a $2,000 max drawdown is 100 points.</div>
+  <div class="cmp" style="top:890px"><div class="t">1 NQ · 100 points</div><div class="b" style="width:92px;background:var(--cyan-t16);border:3px solid var(--cyan)"></div></div>
+  <div class="cmp" style="top:1010px"><div class="t">1 MNQ ($2 a point) · 1,000 points</div><div class="b" style="width:920px;background:rgba(175,175,175,.12);border:3px solid rgba(175,175,175,.8)"></div></div>
+</section>
+
+<!-- 4 · At the limit -->
+<section class="slide" data-pg="4/5">
+  <div class="kick">At the 5-mini limit</div>
+  <div class="h-slide">Trade 5 minis and it shrinks to <span class="c">8 points</span></div>
+  <div class="blk5" style="top:470px"><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="label" style="position:absolute;left:500px;top:490px">5 minis at one time</div>
+  <div class="tile2" style="left:80px;top:590px"><div class="v c">8</div><div class="t"><b class="ink" style="font-weight:600">ES points</b><br>5 ES is $250 a point</div></div>
+  <div style="position:absolute;left:540px;top:610px;width:1.5px;height:330px;background:var(--line)"></div>
+  <div class="tile2" style="left:590px;top:590px"><div class="v">20</div><div class="t"><b class="ink" style="font-weight:600">NQ points</b><br>5 NQ is $100 a point</div></div>
+  <div class="body" style="position:absolute;left:80px;right:80px;top:990px">The contract limit is the most you can hold. Your size decides how many points you get.</div>
+</section>
+
+<!-- 5 · End -->
+<section class="slide" data-pg="end 5/5">
+  <div style="position:absolute;left:80px;right:80px;top:170px;font-size:84px;font-weight:700;letter-spacing:-.03em;line-height:1.08">How many points is <span class="c">your stop</span>?</div>
+  <svg style="position:absolute;left:80px;top:440px" width="920" height="200" viewBox="0 0 920 200" fill="none">
+    <circle cx="110" cy="100" r="96" stroke="#00FBF4" stroke-width="5"/>
+    <circle cx="343" cy="100" r="96" stroke="rgba(0,251,244,.35)" stroke-width="3"/>
+    <circle cx="577" cy="100" r="96" stroke="rgba(0,251,244,.35)" stroke-width="3"/>
+    <circle cx="810" cy="100" r="96" stroke="rgba(0,251,244,.35)" stroke-width="3"/>
+  </svg>
+  <div class="rc" style="left:80px;top:496px"><div class="v">40</div><div class="t">1 ES</div></div>
+  <div class="rc" style="left:313px;top:496px"><div class="v">100</div><div class="t">1 NQ</div></div>
+  <div class="rc" style="left:547px;top:496px"><div class="v">400</div><div class="t">1 MES</div></div>
+  <div class="rc" style="left:780px;top:496px"><div class="v">1,000</div><div class="t">1 MNQ</div></div>
+  <div class="label" style="position:absolute;left:80px;top:676px">Points in a $2,000 max drawdown</div>
+  <div style="position:absolute;left:80px;top:790px"><span class="pill fill">Ask in our Discord</span><div class="label" style="margin-top:20px">Link in bio</div></div>
+  <div class="disc" style="top:990px">Based on the $50K Halcyon Dynamic evaluation. Halcyon offers simulated educational accounts. Results not guaranteed. T&amp;C apply.</div>
+</section>
+</body></html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../kit.css">
+<title>teA · Trailing or end of day? (kit v2)</title>
+<style>
+.ch{position:absolute;left:80px}
+.cap{position:absolute;left:80px;right:80px;font-size:36px;line-height:1.4;color:var(--grey)}
+.cap b{color:var(--ink);font-weight:600}
+.rm{position:absolute;left:80px;right:80px}
+.rm .t{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.rm .t span{font-size:34px;font-weight:600}
+.rm .t b{font-size:56px;font-weight:700;letter-spacing:-.02em}
+.rm .b{height:52px;border-radius:10px}
+</style></head><body>
+<script>
+// EXAMPLE day on 1 NQ, in points from the open. Price path and the two floors.
+const PX=[[0,0],[70,12],[150,4],[230,26],[320,18],[410,40],[500,30],[590,22],[680,10],[770,16],[860,10]];
+function day(id,mode,H,nolab){ // mode: 't' trailing, 'e' end of day, 'b' both
+  const W=920,top=40,bot=H-(mode==='b'&&!nolab?100:60),lo=-110,hi=50,Y=v=>top+(hi-v)/(hi-lo)*(bot-top);
+  let g=`<line x1="0" y1="${Y(0)}" x2="${W}" y2="${Y(0)}" stroke="rgba(175,175,175,.18)" stroke-width="2" stroke-dasharray="6 10"/>`;
+  g+=`<line x1="860" y1="${top-10}" x2="860" y2="${bot+10}" stroke="rgba(175,175,175,.4)" stroke-width="2"/><text x="852" y="${H-12}" text-anchor="end" font-family="Poppins" font-size="26" font-weight="600" letter-spacing="2" fill="#AFAFAF">CLOSE</text><text x="0" y="${H-12}" font-family="Poppins" font-size="26" font-weight="600" letter-spacing="2" fill="#AFAFAF">OPEN</text>`;
+  // floors
+  let hiSo=0,tr=`M0 ${Y(-100)}`;PX.forEach(([x,v])=>{if(v>hiSo){tr+=` L${x} ${Y(hiSo-100)} L${x} ${Y(v-100)}`;hiSo=v;}});tr+=` L${W} ${Y(hiSo-100)}`;
+  const eod=`M0 ${Y(-100)} L860 ${Y(-100)} L860 ${Y(-90)} L${W} ${Y(-90)}`;
+  if(mode!=='e')g+=`<path d="${tr}" stroke="${mode==='b'?'#AFAFAF':'#F2F2F2'}" stroke-width="4" stroke-dasharray="14 10"/>`;
+  if(mode!=='t')g+=`<path d="${eod}" stroke="${mode==='b'?'rgba(175,175,175,.55)':'#F2F2F2'}" stroke-width="4" ${mode==='b'?'':'stroke-dasharray="14 10"'}/>`;
+  g+=`<path d="M${PX.map(([x,v])=>x+' '+Y(v)).join(' L')}" stroke="#00FBF4" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>`;
+  g+=`<circle cx="410" cy="${Y(40)}" r="11" fill="#00FBF4"/><text x="410" y="${Y(40)-22}" text-anchor="middle" font-family="Poppins" font-size="30" font-weight="700" fill="#00FBF4">+40 pts</text>`;
+  if(mode==='t')g+=`<text x="${W}" y="${Y(-60)-18}" text-anchor="end" font-family="Poppins" font-size="28" fill="#F2F2F2">Floor rose 40 pts with the high</text>`;
+  if(mode==='e')g+=`<text x="0" y="${Y(-100)-18}" font-family="Poppins" font-size="28" fill="#F2F2F2">Floor holds all day, then moves at the close</text>`;
+  if(mode==='b'&&!nolab)g+=`<text x="${W-70}" y="${Y(-60)-18}" text-anchor="end" font-family="Poppins" font-size="30" fill="#F2F2F2">Trailing floor</text><text x="0" y="${Y(-100)+44}" font-family="Poppins" font-size="30" fill="#AFAFAF">End of day floor</text>`;
+  document.getElementById(id).innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" fill="none">${g}</svg>`;
+}
+</script>
+
+<!-- 1 · Cover -->
+<section class="slide" data-pg="1/5">
+  <div class="kick">Halcyon Dynamic · $50K</div>
+  <div class="h-cover">Trailing or <span class="c">end of day?</span></div>
+  <div class="example" style="position:absolute;right:80px;top:452px">EXAMPLE</div>
+  <div class="ch" id="d1" style="top:480px"></div>
+  <div class="note" style="top:1108px">The same day on 1 NQ, with each type of $2,000 max drawdown. You pick one at checkout.</div>
+</section>
+
+<!-- 2 · Trailing -->
+<section class="slide" data-pg="2/5">
+  <div class="kick">Option 1 · Trailing</div>
+  <div class="h-slide">The floor <span class="c">follows your high</span></div>
+  <div class="example" style="position:absolute;right:80px;top:452px">EXAMPLE</div>
+  <div class="ch" id="d2" style="top:480px"></div>
+  <div class="cap" style="top:990px">Each new high lifts the floor, and it <b>never moves back down</b>.</div>
+</section>
+
+<!-- 3 · End of day -->
+<section class="slide" data-pg="3/5">
+  <div class="kick">Option 2 · End of day</div>
+  <div class="h-slide">The floor moves <span class="c">at the close</span></div>
+  <div class="example" style="position:absolute;right:80px;top:452px">EXAMPLE</div>
+  <div class="ch" id="d3" style="top:480px"></div>
+  <div class="cap" style="top:990px">During the day the floor stays where it is. It <b>updates once</b>, after the close.</div>
+</section>
+
+<!-- 4 · Same pullback -->
+<section class="slide" data-pg="4/5">
+  <div class="kick">Same day, 30 points off the high</div>
+  <div class="h-slide">Same pullback, <span class="c">different room</span></div>
+  <div class="example" style="position:absolute;right:80px;top:452px">EXAMPLE</div>
+  <div class="rm" style="top:520px"><div class="t"><span>Trailing · room left</span><b>70 pts</b></div><div class="b" style="width:585px;background:rgba(175,175,175,.12);border:3px solid rgba(175,175,175,.8)"></div></div>
+  <div class="rm" style="top:700px"><div class="t"><span>End of day · room left</span><b class="c">110 pts</b></div><div class="b" style="width:920px;background:var(--cyan-t16);border:3px solid var(--cyan)"></div></div>
+  <div class="cap" style="top:880px">Up 40 points, then back 30, on 1 NQ. The trailing floor moved up with the high. The end of day floor waited for the close. Bars to scale.</div>
+</section>
+
+<!-- 5 · End -->
+<section class="slide" data-pg="end 5/5">
+  <div style="position:absolute;left:80px;right:80px;top:170px;font-size:84px;font-weight:700;letter-spacing:-.03em;line-height:1.08">Which one fits <span class="c">how you trade?</span></div>
+  <div class="ch" id="d5" style="top:420px"></div>
+  <div style="position:absolute;left:80px;top:800px"><span class="pill fill">Ask in our Discord</span><div class="label" style="margin-top:20px">Link in bio</div></div>
+  <div class="disc" style="top:990px">Example only, with made-up prices. Halcyon offers simulated educational accounts. Results not guaranteed. T&amp;C apply.</div>
+</section>
+<script>day('d1','b',600);day('d2','t',480);day('d3','e',480);day('d5','b',340,1);</script>
+</body></html>
