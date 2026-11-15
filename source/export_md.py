@@ -6,7 +6,7 @@ s=open('index.html').read()
 D=json.loads(re.search(r'^const D = (\{.*\});\s*$',s,re.M).group(1))
 dt=lambda x:datetime.date.fromisoformat(x)
 fmt=lambda d:f"{d.strftime('%a')} {d.day} {d.strftime('%b')}"
-L=[f"# Halcyon content calendar, {dt(a).day} to {dt(b).day} {dt(b).strftime('%b %Y')}","",
+L=[f"# Halcyon content calendar, {dt(a).day} {dt(a).strftime("%b")} to {dt(b).day} {dt(b).strftime('%b %Y')}","",
  f"Exported {fmt(datetime.date.today())} {datetime.date.today().year} from the GitHub calendar (gabmiren/HalcyonContentCalendar), which is the source of truth. Times are ET, with Malaysia time beside them. TikTok and Instagram both post at least once a day. Reels marked To build have a script and storyboard on the calendar page.",""]
 for plat in('TikTok','Instagram'):
     L+=[f"## {plat}",""]
