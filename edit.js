@@ -1,8 +1,10 @@
-/* Halcyon content calendar · editor (v4, 13 Nov 2026), always on
+/* Halcyon content calendar · editor (v5, 20 Nov 2026), always on
    Loads after index.html's own script and hooks grid(), open(), pubState() and fmt() from outside.
-   Edit mode: move, swap, retime and recaption posts, add new posts and delete posts.
-   With a GitHub token connected, every change auto-saves (2 s after the last one) by committing
-   index.html, the calendar's source of truth. GitHub Pages rebuilds in about a minute. */
+   Edit mode: move, swap and retime posts, edit title, status, format, caption, why and to-do,
+   add new posts and delete posts. Changes stay in this browser until you press "Save to GitHub",
+   which commits index.html (the calendar's source of truth). GitHub Pages rebuilds in about a minute.
+   The GitHub token is typed into the page once and kept in this browser's storage only; it is never
+   written into the page or the repo. */
 (function(){
 "use strict";
 const KEY="hal_cal_edits_v1", ADDK="hal_cal_added_v1", DELK="hal_cal_deleted_v1",
@@ -12,7 +14,8 @@ const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","De
 const DOW7=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DOTNAME={r:"Not scheduled",y:"Scheduled",g:"Posted"}, PUBVAL={r:"none",y:"scheduled",g:"posted"};
 const COPYF=[["caption","Caption"],["fbcap","Backup caption"]];
-const STATUS=[["Ready","ok"],["To build","new"],["Needs Halcyon","dep"],["Posted","ok"]];
+const STATUS=[["Ready","ok"],["Scheduled","ok"],["To build","new"],["Needs Halcyon","dep"],["Posted","ok"]];
+const TXT=["title","status","format","why"], same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const ld=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}};
 const sv=(k,v)=>{try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){toast("Couldn't save in this browser");return false;}};
 const norm=o=>JSON.stringify(typeof o==="string"?JSON.parse(o):o);
@@ -28,10 +31,12 @@ if(pend){
 // ---------- stable keys from each post's ORIGINAL fields ----------
 function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36);}
 const ORIG={}, BYKEY={};
+function origOf(p){return {date:p.date,time:p.time,timeLabel:p.timeLabel,myt:p.myt,day:p.day,caption:p.caption||"",fbcap:p.fbcap||"",
+  title:p.title||"",status:p.status||"",scls:p.scls||"",format:p.format||"",why:p.why||"",todo:(p.todo||[]).slice()};}
 function keyOf(p){return (p.platform==="TikTok"?"tt":"ig")+"-"+p.date.replace(/-/g,"")+"-"+p.time.replace(":","")+"-"+hash(p.platform+"|"+p.title+"|"+p.date+"|"+p.time);}
 P.forEach(p=>{
   const k=keyOf(p); p._k=k; BYKEY[k]=p;
-  ORIG[k]={date:p.date,time:p.time,timeLabel:p.timeLabel,myt:p.myt,day:p.day,caption:p.caption||"",fbcap:p.fbcap||""};
+  ORIG[k]=origOf(p);
 });
 
 // ---------- storage: edits (E), added posts (A), deleted keys (X) ----------
@@ -50,7 +55,7 @@ function setF(k,f,v){
   if(p._new){ if(f==="pub") p._pub=v; else p[f]=v; return; }
   const o=ORIG[k]; E[k]=E[k]||{};
   if(f==="pub"){ if(v==null) delete E[k].pub; else E[k].pub=v; }
-  else if(v===o[f]) delete E[k][f]; else E[k][f]=v;
+  else if(same(v,o[f])) delete E[k][f]; else E[k][f]=v;
   if(!Object.keys(E[k]).length) delete E[k];
 }
 
@@ -71,6 +76,9 @@ function applyAll(){
     p.date=e.date||o.date; p.time=e.time||o.time;
     p.caption=("caption" in e)?e.caption:o.caption;
     if(o.fbcap||("fbcap" in e)) p.fbcap=("fbcap" in e)?e.fbcap:o.fbcap;
+    TXT.forEach(f=>{p[f]=(f in e)?e[f]:o[f];});
+    p.todo=("todo" in e)?e.todo.slice():o.todo.slice();
+    if("status" in e){const b=STATUS.find(x=>x[0]===e.status.split(" · ")[0]);p.scls=b?b[1]:o.scls;} else p.scls=o.scls;
     if(e.time||e.date){ p.timeLabel=etLabel(p.time); p.myt=mytLabel(p.date,p.time); }
     else { p.timeLabel=o.timeLabel; p.myt=o.myt; }
     p.day=o.day;
@@ -121,13 +129,21 @@ open=function(id){
     <div class="erow"><label class="efl">Date<input type="date" data-f="date" value="${p.date}" min="2026-11-01" max="2026-12-31"></label>
     <label class="efl">Time (ET)<input type="time" data-f="time" value="${p.time}" step="300"></label>
     <label class="efl">Status dot<select data-f="pub"><option value="">Automatic</option><option value="r">Not scheduled</option><option value="y">Scheduled</option><option value="g">Posted</option></select></label></div>
+    <label class="efl">Title${("title" in e)?' <span class="edt">Edited</span>':""}<input type="text" data-f="title" value="${esc(p.title)}"></label>
+    <div class="erow"><label class="efl">Status${("status" in e)?' <span class="edt">Edited</span>':""}<select data-f="sbase">${stOpts(p.status)}</select></label>
+    <label class="efl">Status note<input type="text" data-f="snote" value="${esc(p.status.includes(" · ")?p.status.split(" · ").slice(1).join(" · "):"")}" placeholder="e.g. Sat 21"></label>
+    <label class="efl">Format${("format" in e)?' <span class="edt">Edited</span>':""}<input type="text" data-f="format" value="${esc(p.format)}"></label></div>
     ${tx}
-    <div class="ebtns"><button class="btn" data-act="save">Save</button><button class="ebtn" data-act="orig"${E[p._k]?"":" disabled"}>Back to original</button><button class="ebtn del" data-act="del">Delete post</button><span class="enote">Now: ${esc(st)}${E[p._k]?" · original "+fmt(o.date)+", "+esc(o.timeLabel):""}</span></div>
+    <label class="efl">Why here${("why" in e)?' <span class="edt">Edited</span>':""}<textarea data-f="why" rows="3">${esc(p.why||"")}</textarea></label>
+    <label class="efl">To do, one per line${("todo" in e)?' <span class="edt">Edited</span>':""}<textarea data-f="todo" rows="3">${esc((p.todo||[]).join("\n"))}</textarea></label>
+    <div class="ebtns"><button class="btn" data-act="save">Apply changes</button><button class="ebtn" data-act="orig"${E[p._k]?"":" disabled"}>Back to original</button><button class="ebtn del" data-act="del">Delete post</button><span class="enote">Now: ${esc(st)}${E[p._k]?" · original "+fmt(o.date)+", "+esc(o.timeLabel):""}</span></div>
   </div>`;
   document.querySelector("#dr h2").insertAdjacentHTML("afterend",html);
   document.querySelector('.eform select[data-f="pub"]').value=e.pub||"";
 };
 
+function stOpts(cur){const b=(cur||"").split(" · ")[0], l=STATUS.map(x=>x[0]); if(b&&!l.includes(b)) l.push(b);
+  return l.map(x=>`<option${x===b?" selected":""}>${esc(x)}</option>`).join("");}
 // ---------- add / edit form for new posts ----------
 function postForm(p,date){
   const isNew=!p, q=p||{platform:plat,date:date||defDate(),time:"07:00",title:"",pillar:"Entertainment",format:"",status:"To build",caption:"",why:"",todo:[]};
@@ -148,7 +164,7 @@ function postForm(p,date){
     <label class="efl">Caption<textarea data-f="caption" rows="8">${esc(q.caption)}</textarea></label>
     <label class="efl">Why here<textarea data-f="why" rows="3">${esc(q.why)}</textarea></label>
     <label class="efl">To do (one per line)<textarea data-f="todo" rows="3">${esc((q.todo||[]).join("\n"))}</textarea></label>
-    <div class="ebtns"><button class="btn" data-act="nsave">${isNew?"Add post":"Save"}</button>${isNew?"":`<button class="ebtn del" data-act="del">Delete post</button>`}<span class="enote">Video or slides get attached when Claude bakes it in.</span></div>
+    <div class="ebtns"><button class="btn" data-act="nsave">${isNew?"Add post":"Save"}</button>${isNew?"":`<button class="ebtn del" data-act="del">Delete post</button>`}<span class="enote">Press Save to GitHub at the top when you're done. Video or slides get attached when Claude bakes it in.</span></div>
   </div>`;
   $("#dr").classList.add("on");$("#ov").classList.add("on");$("#dr").scrollTop=0;
 }
@@ -166,7 +182,7 @@ function saveNew(f){
     status:st+(note?" · "+note:""),scls:sc,caption:v("caption"),why:v("why").trim(),todo:v("todo").split("\n").map(s=>s.trim()).filter(Boolean)});
   if(st==="Posted") p.pub="posted"; else delete p.pub;
   persist(); if(p.platform!==plat){plat=p.platform;try{localStorage.setItem("hal_cal2_plat",plat)}catch(e){}}
-  refresh(); closeD(); toast(f.dataset.k?"Saved":"Post added to "+fmt(d));
+  refresh(); closeD(); toast((f.dataset.k?"Applied":"Post added to "+fmt(d))+". Press Save to GitHub when you're done");
 }
 function delPost(k){
   const p=BYKEY[k]; if(!p) return;
@@ -192,26 +208,26 @@ async function gh(path,opt,tok){
 }
 function tokenForm(msg){
   $("#dr").innerHTML=`<button class="x" onclick="closeD()">Close</button>
-  <div class="lab">Save to GitHub</div><h2>Turn on auto-save</h2>
+  <div class="lab">Save to GitHub</div><h2>Connect GitHub</h2>
   ${msg?`<div class="box">${esc(msg)}</div>`:""}
-  <p style="color:var(--ink2);font-size:14px;line-height:1.6">Once this is on, every change saves itself to the calendar repo a couple of seconds after you make it, so every device sees it. It needs a GitHub token, made once:</p>
+  <p style="color:var(--ink2);font-size:14px;line-height:1.6">Pressing Save to GitHub commits your changes to the calendar repo, so every device sees them about a minute later. It needs a GitHub token, pasted here once:</p>
   <ol style="color:var(--ink2);font-size:14px;line-height:1.7;padding-left:20px">
    <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:var(--c)">GitHub, new fine-grained token</a>.</li>
    <li>Repository access: only <b>HalcyonContentCalendar</b>.</li>
    <li>Permissions: <b>Contents</b> set to Read and write. Nothing else.</li>
    <li>Generate it, then paste it below.</li></ol>
   <div class="eform"><label class="efl">Token<input type="password" id="ghTok" placeholder="github_pat_..." autocomplete="off"></label>
-  <div class="ebtns"><button class="btn" data-act="tok">Turn on auto-save</button><span class="enote">Kept in this browser only.</span></div></div>`;
+  <div class="ebtns"><button class="btn" data-act="tok">Connect and save</button><span class="enote">Kept in this browser only, never written into the page or the repo.</span></div></div>`;
   $("#dr").classList.add("on");$("#ov").classList.add("on");$("#dr").scrollTop=0;
 }
 let SAVING=false, AGAIN=false, TMR=null, BLOCKED=false, STATE="";
-function schedule(){ if(BLOCKED) return; clearTimeout(TMR); if(!ld(TOKK,null)){bar();return;} STATE="waiting"; bar(); TMR=setTimeout(saveGH,2000); }
+function schedule(){ if(STATE==="saved") STATE=""; bar(); } // manual save only: changes wait for the Save button
 function rebase(snap){
   ORIGD=norm(snap);
   P.forEach(p=>{const e=E[p._k]; if(e&&e.pub) p.pub=PUBVAL[e.pub]; if(p._new&&p._pub) p.pub=PUBVAL[p._pub]; delete p._new; delete p._pub;});
   E={}; A=[]; X=new Set();
   for(const k in BYKEY) delete BYKEY[k]; for(const k in ORIG) delete ORIG[k];
-  P.forEach(p=>{const k=keyOf(p); p._k=k; BYKEY[k]=p; ORIG[k]={date:p.date,time:p.time,timeLabel:p.timeLabel,myt:p.myt,day:p.day,caption:p.caption||"",fbcap:p.fbcap||""};});
+  P.forEach(p=>{const k=keyOf(p); p._k=k; BYKEY[k]=p; ORIG[k]=origOf(p);});
   persist(true);
 }
 async function saveGH(manual){
@@ -230,21 +246,21 @@ async function saveGH(manual){
       if(i<0) throw new Error("Couldn't find the calendar data in index.html");
       if(norm(lines[i].slice(10).replace(/;\s*$/,""))===ORIGD) break;
       if(n===3){ BLOCKED=true; STATE="conflict"; bar();
-        finishMsg("The calendar on GitHub changed after this page loaded, so auto-save has paused. Reload the page; your changes stay in this browser and save again after the reload.",true); return; }
+        finishMsg("The calendar on GitHub changed after this page loaded. Reload the page; your changes stay in this browser, then press Save to GitHub again.",true); return; }
       await new Promise(r=>setTimeout(r,1500));
     }
     lines[i]="const D = "+JSON.stringify(snap)+";";
     const parts=[];if(nEd())parts.push(nEd()+" edited");if(A.length)parts.push(A.length+" added");if(X.size)parts.push(X.size+" deleted");
-    await gh("/contents/"+FILE,{method:"PUT",body:JSON.stringify({message:"Calendar auto-save from the page"+(parts.length?": "+parts.join(", "):""),content:b64enc(lines.join("\n")),sha:cur.sha,branch:BRANCH})},tok);
+    await gh("/contents/"+FILE,{method:"PUT",body:JSON.stringify({message:"Calendar saved from the page"+(parts.length?": "+parts.join(", "):""),content:b64enc(lines.join("\n")),sha:cur.sha,branch:BRANCH})},tok);
     sv(PENDK,{data:JSON.stringify(snap),t:Date.now()});
-    rebase(snap); STATE="saved"; finishMsg("",false);
-    document.getElementById("emsg").className="emsg";
-    applyAll(); render();
+    rebase(snap); STATE="saved"; finishMsg("Saved to GitHub. The live page updates in about a minute.",false);
+    setTimeout(()=>{const n=document.getElementById("emsg");if(n&&STATE==="saved")n.className="emsg";},6000);
+    applyAll(); render(); toast("Saved to GitHub");
   }catch(err){
     if(err.status===401||err.status===403||err.status===404){sv(TOKK,null);STATE="";tokenForm("GitHub didn't accept that token ("+err.message+"). Make a new one with Contents read and write on HalcyonContentCalendar.");}
-    else if(err.status===409){AGAIN=true;}
-    else {STATE="error"; finishMsg("Couldn't save: "+err.message+". Your changes are kept in this browser; tap Save now to retry.",true);}
-  }finally{SAVING=false; bar(); if(AGAIN||(!BLOCKED&&STATE==="saved"&&dirty())) schedule();}
+    else if(err.status===409){STATE="error"; finishMsg("GitHub was busy with another save. Press Save to GitHub again.",true);}
+    else {STATE="error"; finishMsg("Couldn't save: "+err.message+". Your changes are kept in this browser; press Save to GitHub to retry.",true);}
+  }finally{SAVING=false; bar(); if(AGAIN){AGAIN=false; saveGH(true);} }
 }
 function finishMsg(t,bad){const n=document.getElementById("emsg");n.textContent=t;n.className="emsg on"+(bad?" bad":"");}
 
@@ -282,7 +298,7 @@ body.dragging,body.dragging *{cursor:grabbing!important}
 .erow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .efl{display:flex;flex-direction:column;gap:5px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);font-weight:500;margin-top:10px}
 .efl input,.efl select,.efl textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:13px/1.5 Poppins,sans-serif;padding:8px 10px;letter-spacing:0;text-transform:none;color-scheme:dark}
-.efl textarea{resize:vertical}.efl input:focus,.efl select:focus,.efl textarea:focus{outline:none;border-color:var(--c)}
+.efl textarea{resize:vertical}.efl .edt{align-self:flex-start;margin:0 0 0 0}.erow>*{min-width:0}.efl input,.efl select{width:100%;min-width:0}.efl input:focus,.efl select:focus,.efl textarea:focus{outline:none;border-color:var(--c)}
 .ebtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.enote{font-size:12px;color:var(--ink3)}
 @media (max-width:600px){.erow{grid-template-columns:1fr}.ebar{position:static;padding:8px 12px;gap:8px}.ebar .hint{display:none}}
 </style>`);
@@ -293,9 +309,9 @@ document.querySelector("#v-cal").insertAdjacentHTML("afterbegin",`${PENDING?`<di
   <button class="ebtn" id="eAdd" type="button">+ Add post</button>
   <button class="ebtn" id="eCopy" type="button">Copy my edits</button>
   <button class="ebtn" id="eUndo" type="button">Undo all</button>
-  <span class="sstat" id="sstat"></span><button class="btn" id="eSave" type="button">Save now</button>
+  <span class="sstat" id="sstat"></span><button class="btn" id="eSave" type="button">Save to GitHub</button>
   <span class="emsg" id="emsg"></span>
-  <span class="hint">Drag a post to another day to move it, or onto another post to swap (on a phone, press and hold first). Tap a dot to change its status. Tap a post to edit or delete it. Tap + on any day to add one.</span>
+  <span class="hint">Drag a post to another day to move it, or onto another post to swap (on a phone, press and hold first). Tap a dot to change its status. Tap a post to edit or delete it. Tap + on any day to add one. Nothing reaches GitHub until you press Save to GitHub (or Ctrl/Cmd + S).</span>
 </div>`);
 
 const EDIT=true; document.body.classList.add("editing");
@@ -304,13 +320,12 @@ let armT=null, armDel=null;
 function bar(){
   const tok=!!ld(TOKK,null), d=dirty(), st=document.getElementById("sstat"), sb=document.getElementById("eSave");
   const parts=[];if(nEd())parts.push(`<i>${nEd()}</i> edited`);if(A.length)parts.push(`<i>${A.length}</i> added`);if(X.size)parts.push(`<i>${X.size}</i> deleted`);
-  document.getElementById("ecount").innerHTML=tok?"Auto-save on":(parts.length?parts.join(" · ")+" · not saved yet":"Auto-save off");
+  document.getElementById("ecount").innerHTML=d&&parts.length?parts.join(" · ")+" · not saved yet":"Calendar editor";
   st.className="sstat "+(STATE||"");
-  st.textContent=!tok?"":STATE==="saving"?"Saving…":STATE==="waiting"?"Saving in a moment…":STATE==="conflict"?"Paused, reload the page":STATE==="error"?"Not saved":d?"Unsaved changes":"All changes saved";
-  sb.textContent=tok?"Save now":"Turn on auto-save"; sb.disabled=SAVING||(tok&&!d&&STATE!=="error");
-  sb.style.display=(tok&&!d&&STATE!=="error")?"none":"";
+  st.textContent=STATE==="saving"?"Saving…":STATE==="conflict"?"Reload the page, then save again":STATE==="error"?"Not saved":d?"Unsaved changes":"All changes saved";
+  sb.textContent=SAVING?"Saving…":"Save to GitHub"; sb.disabled=SAVING||(!d&&STATE!=="error");
   document.getElementById("eCopy").disabled=!total(); document.getElementById("eUndo").disabled=!total();
-  const lc=!tok&&total(); document.getElementById("eCopy").style.display=document.getElementById("eUndo").style.display=lc?"":"none";
+  document.getElementById("eCopy").style.display="none"; document.getElementById("eUndo").style.display=total()?"":"none";
 }
 function refresh(){applyAll();render();bar();}
 
@@ -318,7 +333,7 @@ function refresh(){applyAll();render();bar();}
 document.addEventListener("click",ev=>{
   const t=ev.target;
   if(SUPPRESS){ev.stopImmediatePropagation();ev.preventDefault();SUPPRESS=false;return;}
-  if(t.closest("#eSave")){ev.stopImmediatePropagation();if(!ld(TOKK,null))tokenForm();else saveGH(true);return;}
+  if(t.closest("#eSave")){ev.stopImmediatePropagation();if(!dirty()){toast("Everything is already saved");return;}if(!ld(TOKK,null))tokenForm();else saveGH(true);return;}
   if(t.closest("#eAdd")){ev.stopImmediatePropagation();postForm(null);return;}
   if(EDIT&&t.closest(".addp")){ev.stopImmediatePropagation();ev.preventDefault();postForm(null,t.closest(".addp").dataset.date);return;}
   if(t.closest("#eCopy")){ev.stopImmediatePropagation();copy(exportJSON(),"Edits copied, paste them to Claude");return;}
@@ -330,7 +345,7 @@ document.addEventListener("click",ev=>{
     const nx=order[(order.indexOf(cur)+1)%4]; setF(k,"pub",nx); persist(); refresh();
     toast(nx?"Status: "+DOTNAME[nx]:"Status: automatic"); return;}
   if(t.closest('[data-act="tok"]')){ev.stopImmediatePropagation();const v=(document.getElementById("ghTok").value||"").trim();
-    if(!v){toast("Paste the token first");return;} sv(TOKK,v); closeD(); toast("Auto-save is on"); saveGH(true); return;}
+    if(!v){toast("Paste the token first");return;} sv(TOKK,v); closeD(); toast("GitHub connected"); saveGH(true); return;}
   const fb=t.closest(".eform button"); if(fb){ev.stopImmediatePropagation();formAct(fb);return;}
 },true);
 
@@ -348,8 +363,12 @@ function formAct(b){
   if(!/^\d\d:\d\d$/.test(tm||"")){toast("Pick a time");return;}
   setF(k,"date",d); setF(k,"time",tm);
   COPYF.forEach(([n])=>{const x=v(n); if(x!==null) setF(k,n,x.replace(/\r\n/g,"\n"));});
+  const ti=(v("title")||"").trim(); if(!ti){toast("Give the post a title");return;}
+  setF(k,"title",ti); setF(k,"format",(v("format")||"").trim()); setF(k,"why",(v("why")||"").replace(/\r\n/g,"\n").trim());
+  const sn=(v("snote")||"").trim(); setF(k,"status",(v("sbase")||"")+(sn?" · "+sn:""));
+  setF(k,"todo",(v("todo")||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean));
   setF(k,"pub",v("pub")||null);
-  persist(); refresh(); open(p.id); toast(E[k]?"Saved in this browser":"Matches the original, edit cleared");
+  persist(); refresh(); open(p.id); toast(E[k]?"Applied. Press Save to GitHub when you're done":"Matches the original, edit cleared");
 }
 
 function exportJSON(){
@@ -436,6 +455,9 @@ document.addEventListener("pointerup",ev=>endDrag(ev,false));
 document.addEventListener("pointercancel",ev=>endDrag(ev,true));
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&DRG&&DRG.on){ const id=DRG.id; endDrag({pointerId:id},true); } });
 
+// ---------- keyboard save and unsaved-changes warning ----------
+document.addEventListener("keydown",ev=>{ if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="s"){ ev.preventDefault(); if(!dirty()){toast("Everything is already saved");return;} if(!ld(TOKK,null))tokenForm(); else saveGH(true);} });
+window.addEventListener("beforeunload",ev=>{ if(dirty()&&!SAVING){ ev.preventDefault(); ev.returnValue=""; } });
 // ---------- start ----------
 applyAll(); render(); bar();
 window.HAL_EDIT={export:exportJSON,count:total,bake:bakeData};
