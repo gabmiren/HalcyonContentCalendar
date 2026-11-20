@@ -138,7 +138,7 @@ const P=D.posts;
 // legend
 function legend(){
  const used=new Set(P.filter(p=>p.platform===plat).map(p=>p.pillar));
- $("#legend").innerHTML=`<span class="pubk"><i style="background:#ff5a6e"></i>Not scheduled</span><span class="pubk"><i style="background:#ffc94a"></i>Scheduled</span><span class="pubk"><i style="background:#3ddc84"></i>Posted</span>`;
+ $("#legend").innerHTML=`<span class="pubk"><i style="background:#ff5a6e"></i>Not scheduled</span><span class="pubk"><i style="background:#3ddc84"></i>Scheduled in Metricool or posted</span>`;
  document.querySelectorAll(".lg").forEach(e=>e.onclick=()=>{const p=e.dataset.p;off.has(p)?off.delete(p):off.add(p);render();});
 }
 
@@ -239,16 +239,12 @@ document.addEventListener("click",async e=>{
  }catch(err){ if(err&&err.code==="declined"){} else if(err&&err.code){toast("Couldn't save here, try the GitHub page");} else if(btn.dataset.url){const a=document.createElement("a");a.href=btn.dataset.url;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove();} else toast("Download failed, try the single slides"); }
  btn.disabled=false; btn.textContent=t0;
 });
-// publish state: red not scheduled, yellow scheduled, green posted
+// publish state: red = not scheduled, green = scheduled in Metricool or posted (no yellow, 20 Nov)
 function pubState(p){
  if(p.pub==="posted") return ["g","Posted"];
  if(p.pub==="none") return ["r","Not scheduled"];
- if(p.pub==="scheduled"){const [h,m]=p.time.split(":").map(Number);const due=Date.UTC(+p.date.slice(0,4),+p.date.slice(5,7)-1,+p.date.slice(8,10),h+5,m||0);return Date.now()>=due?["g","Posted"]:["y","Scheduled"];}
- if(D.scheduledThrough&&p.date<=D.scheduledThrough){
-  const [h,m]=p.time.split(":").map(Number);
-  const due=Date.UTC(+p.date.slice(0,4),+p.date.slice(5,7)-1,+p.date.slice(8,10),h+5,m||0); // ET is UTC-5 until 8 Mar
-  return Date.now()>=due?["g","Posted"]:["y","Scheduled"];
- }
+ if(p.pub==="scheduled") return ["g","Scheduled"];
+ if(D.scheduledThrough&&p.date<=D.scheduledThrough) return ["g","Scheduled"];
  return ["r","Not scheduled"];
 }
 const pubDot=p=>{const [c,t]=pubState(p);return `<span class="pub ${c}" title="${t}"></span>`;};
@@ -304,5 +300,5 @@ document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{plat=b.datase
 function render(){document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.p===plat));legend();grid();}
 render();
 </script>
-<script src="edit.js?v=5"></script>
+<script src="edit.js?v=6"></script>
 </body></html>

@@ -12,7 +12,7 @@ const KEY="hal_cal_edits_v1", ADDK="hal_cal_added_v1", DELK="hal_cal_deleted_v1"
 const REPO="gabmiren/HalcyonContentCalendar", BRANCH="main", FILE="index.html";
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DOW7=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DOTNAME={r:"Not scheduled",y:"Scheduled",g:"Posted"}, PUBVAL={r:"none",y:"scheduled",g:"posted"};
+const DOTNAME={r:"Not scheduled",y:"Scheduled",g:"Scheduled"}, PUBVAL={r:"none",y:"scheduled",g:"scheduled"}; // two states since 20 Nov: red or green
 const COPYF=[["caption","Caption"],["fbcap","Backup caption"]];
 const STATUS=[["Ready","ok"],["Scheduled","ok"],["To build","new"],["Needs Halcyon","dep"],["Posted","ok"]];
 const TXT=["title","status","format","why"], same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
@@ -95,8 +95,9 @@ function applyAll(){
 const _grid=grid, _open=open, _pub=pubState;
 fmt=function(iso){const x=dt(iso);return DOW[(x.getUTCDay()+6)%7]+" "+x.getUTCDate()+" "+MON[x.getUTCMonth()];};
 pubState=function(p){
-  if(p._new&&p._pub) return [p._pub,DOTNAME[p._pub]];
-  const e=E[p._k]; if(e&&e.pub) return [e.pub,DOTNAME[e.pub]];
+  const yg=v=>v==="y"?"g":v;
+  if(p._new&&p._pub) return [yg(p._pub),DOTNAME[p._pub]];
+  const e=E[p._k]; if(e&&e.pub) return [yg(e.pub),DOTNAME[e.pub]];
   if(p.pub==="none") return ["r","Not scheduled"];
   return _pub(p);
 };
@@ -128,7 +129,7 @@ open=function(id){
     <div class="lab" style="color:var(--c)">Edit this post</div>
     <div class="erow"><label class="efl">Date<input type="date" data-f="date" value="${p.date}" min="2026-11-01" max="2026-12-31"></label>
     <label class="efl">Time (ET)<input type="time" data-f="time" value="${p.time}" step="300"></label>
-    <label class="efl">Status dot<select data-f="pub"><option value="">Automatic</option><option value="r">Not scheduled</option><option value="y">Scheduled</option><option value="g">Posted</option></select></label></div>
+    <label class="efl">Status dot<select data-f="pub"><option value="">Automatic</option><option value="r">Not scheduled (red)</option><option value="g">Scheduled or posted (green)</option></select></label></div>
     <label class="efl">Title${("title" in e)?' <span class="edt">Edited</span>':""}<input type="text" data-f="title" value="${esc(p.title)}"></label>
     <div class="erow"><label class="efl">Status${("status" in e)?' <span class="edt">Edited</span>':""}<select data-f="sbase">${stOpts(p.status)}</select></label>
     <label class="efl">Status note<input type="text" data-f="snote" value="${esc(p.status.includes(" · ")?p.status.split(" · ").slice(1).join(" · "):"")}" placeholder="e.g. Sat 21"></label>
@@ -139,7 +140,7 @@ open=function(id){
     <div class="ebtns"><button class="btn" data-act="save">Apply changes</button><button class="ebtn" data-act="orig"${E[p._k]?"":" disabled"}>Back to original</button><button class="ebtn del" data-act="del">Delete post</button><span class="enote">Now: ${esc(st)}${E[p._k]?" · original "+fmt(o.date)+", "+esc(o.timeLabel):""}</span></div>
   </div>`;
   document.querySelector("#dr h2").insertAdjacentHTML("afterend",html);
-  document.querySelector('.eform select[data-f="pub"]').value=e.pub||"";
+  document.querySelector('.eform select[data-f="pub"]').value=e.pub==="y"?"g":(e.pub||"");
 };
 
 function stOpts(cur){const b=(cur||"").split(" · ")[0], l=STATUS.map(x=>x[0]); if(b&&!l.includes(b)) l.push(b);
@@ -341,8 +342,8 @@ document.addEventListener("click",ev=>{
     if(!armT){const u=t.closest("#eUndo");u.classList.add("warn");u.textContent="Click again to undo all";armT=setTimeout(disarm,3500);return;}
     disarm();sv(KEY,null);sv(ADDK,null);sv(DELK,null);toast("All changes undone");setTimeout(()=>location.reload(),400);return;}
   if(EDIT&&t.closest("#grid .card .pub")){ev.stopImmediatePropagation();ev.preventDefault();
-    const k=t.closest(".card").dataset.k, p=BYKEY[k], cur=p._new?(p._pub||null):((E[k]&&E[k].pub)||null), order=[null,"r","y","g"];
-    const nx=order[(order.indexOf(cur)+1)%4]; setF(k,"pub",nx); persist(); refresh();
+    const k=t.closest(".card").dataset.k, p=BYKEY[k], cur=p._new?(p._pub||null):((E[k]&&E[k].pub)||null), order=[null,"r","g"];
+    const nx=order[(order.indexOf(cur==="y"?"g":cur)+1)%3]; setF(k,"pub",nx); persist(); refresh();
     toast(nx?"Status: "+DOTNAME[nx]:"Status: automatic"); return;}
   if(t.closest('[data-act="tok"]')){ev.stopImmediatePropagation();const v=(document.getElementById("ghTok").value||"").trim();
     if(!v){toast("Paste the token first");return;} sv(TOKK,v); closeD(); toast("GitHub connected"); saveGH(true); return;}
