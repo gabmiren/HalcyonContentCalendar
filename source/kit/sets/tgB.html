@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="../kit.css">
+<title>tgB · This week: futures stop early twice (Thanksgiving, kit v2)</title>
+<style>
+.hn{position:absolute;left:80px;top:196px;display:flex;align-items:baseline;gap:24px}
+.hn .n{font-size:300px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--cyan)}
+.hn .u{font-size:64px;font-weight:700;letter-spacing:-.02em;color:var(--cyan)}
+.ht{position:absolute;left:80px;right:80px;top:556px;font-size:84px;font-weight:700;letter-spacing:-.03em;line-height:1.06}
+.hb{position:absolute;left:80px;right:80px;top:676px;font-size:38px;line-height:1.4;color:var(--grey)}
+.hb b{color:var(--ink);font-weight:600}
+.grid{position:absolute;left:80px;top:470px}
+.day{position:absolute;left:80px;top:880px}
+</style></head><body>
+<script>
+// Times are hours in ET. Bars are drawn to scale from 6 AM to 6 PM ET.
+const H0=6,H1=18;
+function fmt(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);const p=hh>=12?'PM':'AM';const d=hh>12?hh-12:hh;return d+(mm?':'+String(mm).padStart(2,'0'):'')+' '+p;}
+function row(x0,x1,y,h,r,big){
+  const X=t=>x0+(t-H0)/(H1-H0)*(x1-x0);let g='';const th=big?56:40,cy=y;
+  const end=r.end||17;
+  if(r.end){ // cut short: cyan up to the stop, dashed grey for the hours that go missing
+    g+=`<rect x="${X(H0)}" y="${cy-th/2}" width="${X(end)-X(H0)}" height="${th}" rx="${th/2}" fill="#00FBF4" fill-opacity=".9"/>`;
+    g+=`<rect x="${X(end)+8}" y="${cy-th/2+2}" width="${X(17)-X(end)-8}" height="${th-4}" rx="${(th-4)/2}" fill="rgba(175,175,175,.08)" stroke="#AFAFAF" stroke-width="2.5" stroke-dasharray="10 8"/>`;
+    g+=`<circle cx="${X(end)}" cy="${cy}" r="${big?30:22}" fill="#00FBF4" stroke="#0B0C0D" stroke-width="6" style="filter:drop-shadow(0 0 14px rgba(0,251,244,.6))"/>`;
+    if(big){g+=`<text x="${(X(end)+X(17))/2+4}" y="${cy+10}" text-anchor="middle" font-size="28" fill="#AFAFAF">${r.gap}</text>`;}
+    else{g+=`<text x="${(X(end)+X(17))/2+12}" y="${cy+10}" text-anchor="middle" font-size="26" font-weight="600" fill="#F2F2F2">${r.lab}</text>`;}
+  } else {
+    g+=`<rect x="${X(H0)}" y="${cy-th/2}" width="${X(17)-X(H0)}" height="${th}" rx="${th/2}" fill="rgba(175,175,175,.26)"/>`;
+  }
+  if(r.pin){g+=`<line x1="${X(r.pin)}" y1="${cy-th/2-6}" x2="${X(r.pin)}" y2="${cy+th/2+6}" stroke="#0B0C0D" stroke-width="6"/>`;
+    g+=`<circle cx="${X(r.pin)}" cy="${cy}" r="${big?26:19}" fill="#00FBF4" stroke="#0B0C0D" stroke-width="6" style="filter:drop-shadow(0 0 14px rgba(0,251,244,.6))"/>`;
+    if(!big) g+=`<text x="${X(r.pin)+36}" y="${cy+10}" font-size="26" font-weight="600" fill="#F2F2F2">${r.lab}</text>`;}
+  return g;
+}
+function axis(x0,x1,yTop,yBot){
+  const X=t=>x0+(t-H0)/(H1-H0)*(x1-x0);let g='';
+  [[6,'6 AM'],[9,'9 AM'],[12,'12 PM'],[15,'3 PM'],[18,'6 PM']].forEach(([t,l])=>{
+    g+=`<text x="${X(t)}" y="${yTop}" text-anchor="${t==6?'start':t==18?'end':'middle'}" font-size="24" fill="#7E8787">${l}</text>`;});
+  // Halcyon's normal flat time
+  g+=`<line x1="${X(16.75)}" y1="${yTop+22}" x2="${X(16.75)}" y2="${yBot}" stroke="#00FBF4" stroke-opacity=".7" stroke-width="2.5" stroke-dasharray="6 8"/>`;
+  g+=`<text x="${X(16.75)}" y="${yBot+40}" text-anchor="middle" font-size="24" font-weight="600" fill="#00FBF4">Flat by 4:45</text>`;
+  return g;
+}
+function grid(id){
+  const rows=[['Mon 23',{}],['Tue 24',{}],['Wed 25',{pin:8.5,lab:'GDP + PCE'}],['Thu 26',{end:13,lab:'1:00 halt'}],['Fri 27',{end:13.25,lab:'1:15 close'}]];
+  const x0=170,x1=920;let g=axis(x0,x1,24,620);
+  rows.forEach(([d,r],i)=>{const y=96+i*112;const on=r.end||r.pin;
+    g+=`<text x="0" y="${y+10}" font-size="30" font-weight="${on?600:400}" fill="${on?'#F2F2F2':'#AFAFAF'}">${d}</text>`;g+=row(x0,x1,y,0,r,false);});
+  document.getElementById(id).innerHTML=`<svg width="920" height="670" viewBox="0 0 920 670" fill="none" font-family="Poppins">${g}</svg>`;
+}
+function day(id,r){
+  const x0=0,x1=920;let g=axis(x0,x1,24,170);g+=row(x0,x1,100,0,r,true);
+  document.getElementById(id).innerHTML=`<svg width="920" height="230" viewBox="0 0 920 230" fill="none" font-family="Poppins">${g}</svg>`;
+}
+</script>
+
+<!-- 1 · Cover -->
+<section class="slide" data-pg="1/5" data-name="tgB_1">
+  <div class="kick">This week · 23 to 27 Nov</div>
+  <div class="h-cover">Futures stop early <span class="c">twice</span></div>
+  <div class="grid" id="g1"></div>
+  <div class="note" style="top:1172px">Times ET. Bars drawn to scale. Sources: BEA, CME Group holiday calendar.</div>
+</section>
+
+<!-- 2 · Wed -->
+<section class="slide" data-pg="2/5" data-name="tgB_2">
+  <div class="kick">Wed 25 Nov</div>
+  <div class="hn"><span class="n">8:30</span><span class="u">AM ET</span></div>
+  <div class="ht">GDP and PCE</div>
+  <div class="hb">Growth and inflation in one release, the <b>last big print</b> before the holiday.</div>
+  <div class="day" id="d2"></div>
+</section>
+
+<!-- 3 · Thu -->
+<section class="slide" data-pg="3/5" data-name="tgB_3">
+  <div class="kick">Thu 26 Nov · Thanksgiving</div>
+  <div class="hn"><span class="n">1:00</span><span class="u">PM ET</span></div>
+  <div class="ht">Futures halt</div>
+  <div class="hb">Stocks are closed all day. ES and NQ stop at 1:00 and <b>reopen at 6:00 PM ET</b>.</div>
+  <div class="day" id="d3"></div>
+</section>
+
+<!-- 4 · Fri -->
+<section class="slide" data-pg="4/5" data-name="tgB_4">
+  <div class="kick">Fri 27 Nov</div>
+  <div class="hn"><span class="n">1:15</span><span class="u">PM ET</span></div>
+  <div class="ht">Early close</div>
+  <div class="hb">Stocks close at 1:00. Futures then stay shut <b>until Sunday 6:00 PM ET</b>.</div>
+  <div class="day" id="d4"></div>
+</section>
+
+<!-- 5 · End -->
+<section class="slide" data-pg="end 5/5" data-name="tgB_5">
+  <div style="position:absolute;left:80px;right:80px;top:170px;font-size:84px;font-weight:700;letter-spacing:-.03em;line-height:1.08">Trading the holiday week or <span class="c">taking it off?</span></div>
+  <div class="rule" style="top:470px"><div class="label">Halcyon rule</div><p>Every account is flat by <b>4:45 PM ET</b> on a normal day. Check Halcyon's <b>holiday close</b> before Thursday.</p></div>
+  <div style="position:absolute;left:80px;top:790px"><span class="pill fill">Plan the week in our Discord</span><div class="label" style="margin-top:20px">Link in bio</div></div>
+  <div class="disc" style="top:1010px">Times ET. Sources: BEA, CME Group holiday calendar. Halcyon offers simulated educational accounts. Results not guaranteed. T&amp;C apply.</div>
+</section>
+<script>
+grid('g1');
+day('d2',{pin:8.5});
+day('d3',{end:13,gap:'Halted'});
+day('d4',{end:13.25,gap:'Closed'});
+</script>
+</body></html>
