@@ -1,0 +1,291 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:P;src:url(file:///usr/share/fonts/truetype/google-fonts/Poppins-Regular.ttf);font-weight:400}
+@font-face{font-family:P;src:url(file:///usr/share/fonts/truetype/google-fonts/Poppins-Medium.ttf);font-weight:500}
+@font-face{font-family:P;src:url(fonts/Poppins-SemiBold.ttf);font-weight:600}
+@font-face{font-family:P;src:url(file:///usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf);font-weight:700}
+@font-face{font-family:P;src:url(fonts/Poppins-ExtraBold.ttf);font-weight:800}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;background:transparent;overflow:hidden;font-family:P,sans-serif;color:#F2F2F2}
+#stage{position:absolute;inset:0}
+#plate{position:absolute;inset:0;display:none}
+.fringe{text-shadow:-1.5px 0 rgba(255,40,90,.28),1.5px 0 rgba(0,190,255,.32)}
+/* header */
+#hdr{position:absolute;left:64px;top:236px;width:820px}
+#hdr .tab{display:inline-block;background:#D9DCDC;color:#0B0C0D;font-weight:700;font-size:24px;letter-spacing:.14em;padding:6px 14px 4px}
+#hdr .bar{background:linear-gradient(90deg,#00FBF4,#00D9D3 70%,#5FFFF9);color:#04100F;font-weight:800;font-size:58px;line-height:1.02;letter-spacing:-.01em;padding:16px 22px 14px;text-transform:uppercase}
+#hdr .meta{display:flex;justify-content:space-between;font-weight:700;font-size:26px;letter-spacing:.12em;margin-top:12px;color:#F2F2F2}
+/* props */
+.prop{position:absolute;left:76px;width:864px;top:610px;display:none}
+.panel{background:rgba(9,12,13,.86);border:2px solid #2A3236;box-shadow:0 0 0 6px rgba(0,0,0,.35)}
+.ptab{position:absolute;top:-19px;left:22px;background:#0B0C0D;border:2px solid #2A3236;color:#AFAFAF;font-weight:700;font-size:24px;letter-spacing:.14em;padding:2px 12px}
+/* LED board */
+#board{padding:46px 34px 34px}
+.brow{display:flex;align-items:center;height:118px}
+.brow .lab{width:270px;font-weight:700;font-size:26px;letter-spacing:.12em;color:#AFAFAF}
+.brow canvas{display:block}
+/* win95 */
+.win{background:#C3C7C7;border:3px solid;border-color:#F0F2F2 #3E4444 #3E4444 #F0F2F2;box-shadow:6px 8px 0 rgba(0,0,0,.45)}
+.win .tb{height:52px;background:linear-gradient(90deg,#0E5F5D,#159794);display:flex;align-items:center;justify-content:space-between;padding:0 10px 0 16px;color:#F2F2F2;font-weight:700;font-size:26px;letter-spacing:.04em}
+.win .x{width:34px;height:30px;background:#C3C7C7;border:2px solid;border-color:#F0F2F2 #3E4444 #3E4444 #F0F2F2;color:#0B0C0D;font-size:22px;line-height:24px;text-align:center;font-weight:800}
+.win .bd{padding:30px 34px;color:#111;font-size:34px}
+.sunk{background:#E4E6E6;border:3px solid;border-color:#3E4444 #F0F2F2 #F0F2F2 #3E4444;height:52px;position:relative;overflow:hidden}
+.btn{display:inline-block;min-width:170px;text-align:center;padding:10px 20px;background:#C3C7C7;border:3px solid;border-color:#F0F2F2 #3E4444 #3E4444 #F0F2F2;font-weight:600;font-size:30px;color:#111;outline:2px dotted #111;outline-offset:-10px}
+/* CRT */
+.crt{background:#050808;border-radius:26px;border:14px solid #1A1F21;box-shadow:inset 0 0 80px rgba(0,251,244,.08),0 0 0 3px #2A3236;overflow:hidden;position:relative}
+.tt{height:58px;background:#00FBF4;color:#04100F;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-weight:800;font-size:28px;letter-spacing:.04em}
+.ex{position:absolute;right:20px;bottom:16px;font-weight:700;font-size:24px;letter-spacing:.14em;color:#AFAFAF;border:2px solid #4A5356;padding:2px 10px}
+/* captions */
+#cap{position:absolute;left:70px;right:70px;top:1100px;height:140px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:56px;line-height:1.16;letter-spacing:-.01em}
+#cap span{color:#6F7878;transition:none}
+#cap span.on{color:#F2F2F2}
+#cap span.k.on{color:#00FBF4}
+#cap span{text-shadow:0 3px 14px rgba(0,0,0,.9)}
+/* ticker */
+#tick{position:absolute;left:0;right:0;top:1262px;height:50px;background:rgba(6,9,10,.82);border-top:3px solid #00FBF4;overflow:hidden}
+#tick .in{position:absolute;top:8px;white-space:nowrap;font-weight:700;font-size:27px;letter-spacing:.06em}
+#tick b{color:#00FBF4;font-weight:700}
+/* fx */
+#scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 2px,transparent 2px 4px);pointer-events:none}
+#vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.55));pointer-events:none}
+#noise{position:absolute;inset:0;display:none}
+#off{position:absolute;inset:0;display:none;background:#000}
+#off i{position:absolute;left:50%;top:50%;background:#EAFFFE;box-shadow:0 0 40px #00FBF4}
+#end{position:absolute;inset:0;background:radial-gradient(900px 700px at 50% 40%,#0F1A1B,#060808 70%);display:none}
+#end .q{position:absolute;left:90px;right:90px;top:640px;text-align:center;font-weight:700;font-size:66px;line-height:1.15;letter-spacing:-.02em}
+#end .pill{position:absolute;left:50%;transform:translateX(-50%);top:930px;border:3px solid #00FBF4;border-radius:999px;padding:16px 46px;font-weight:700;font-size:36px;letter-spacing:.08em;color:#00FBF4;box-shadow:0 0 26px rgba(0,251,244,.45),inset 0 0 18px rgba(0,251,244,.18);white-space:nowrap}
+#end .lib{position:absolute;left:0;right:0;top:1046px;text-align:center;font-weight:700;font-size:40px;letter-spacing:.14em}
+#end .disc{position:absolute;left:150px;right:150px;top:1230px;text-align:center;font-size:26px;line-height:1.45;color:#AFAFAF}
+</style></head><body>
+<div id="stage">
+  <canvas id="plate" width="1080" height="1920"></canvas>
+
+  <!-- LED board -->
+  <div class="prop panel" id="pBoard"><div class="ptab">EVAL BOARD · $50K DYNAMIC</div>
+    <div id="board">
+      <div class="brow"><div class="lab" id="l0">ACCOUNT</div><canvas id="c0" width="520" height="96"></canvas></div>
+      <div class="brow"><div class="lab" id="l1">TARGET</div><canvas id="c1" width="520" height="96"></canvas></div>
+      <div class="brow"><div class="lab" id="l2">DRAWDOWN</div><canvas id="c2" width="520" height="96"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Win95: checking, then the error -->
+  <div class="prop win" id="pChk" style="top:640px"><div class="tb"><span>EVALUATION.EXE</span><span class="x">×</span></div>
+    <div class="bd"><div style="font-weight:600;margin-bottom:18px">Checking your account…</div><div class="sunk"><div id="chkFill" style="position:absolute;left:6px;top:6px;bottom:6px;width:0"></div></div></div>
+  </div>
+  <div class="prop win" id="pErr" style="top:600px;left:96px;width:824px"><div class="tb"><span>EVALUATION.EXE</span><span class="x">×</span></div>
+    <div class="bd" style="display:flex;gap:30px">
+      <svg width="92" height="92" viewBox="0 0 92 92" style="flex:none"><circle cx="46" cy="46" r="40" fill="#5E6668" stroke="#2A3033" stroke-width="4"/><path d="M30 30 L62 62 M62 30 L30 62" stroke="#F2F2F2" stroke-width="10" stroke-linecap="round"/></svg>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:38px">Max drawdown reached.</div>
+        <div style="font-size:34px;margin-top:6px">This evaluation has ended.</div>
+        <div id="errSel" style="margin-top:26px;font-size:32px;padding:6px 12px;display:flex;justify-content:space-between"><span>Max drawdown</span><b>$2,000</b></div>
+        <div style="margin-top:30px;text-align:right"><span class="btn">OK</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CRT teletext: ruler -->
+  <div class="prop crt" id="pRule" style="top:590px;height:492px"><div class="tt"><span>P140 · ONE CONTRACT</span><span>$2,000 IN POINTS</span></div>
+    <canvas id="ruler" width="836" height="406"></canvas><div class="ex">EXAMPLE</div></div>
+
+  <!-- CRT teletext: candle + battery -->
+  <div class="prop crt" id="pDrop" style="top:590px;height:492px"><div class="tt"><span>ES · 1 CONTRACT</span><span>BUSY MORNING</span></div>
+    <canvas id="drop" width="836" height="406"></canvas><div class="ex">EXAMPLE</div></div>
+
+  <!-- Notepad -->
+  <div class="prop win" id="pPad" style="top:620px"><div class="tb"><span>SIZING.TXT</span><span class="x">×</span></div>
+    <div class="bd" style="background:#0C1112;margin:10px;border:3px solid;border-color:#3E4444 #F0F2F2 #F0F2F2 #3E4444;color:#F2F2F2;font-weight:600;font-size:40px;line-height:1.7;padding:26px 30px;min-height:300px">
+      <div id="t0" style="color:#AFAFAF"></div><div id="t1"></div><div id="t2"></div>
+    </div>
+  </div>
+
+  <div id="cap"></div>
+  <div id="tick"><div class="in" id="tickIn"></div></div>
+
+  <div id="hdr" class="fringe">
+    <div class="tab">EVALUATION DESK · $50K</div>
+    <div class="bar">Your $50K is really<br>a $2,000 account.</div>
+    <div class="meta"><span>▶ PLAY</span><span>NOV 22</span></div>
+  </div>
+
+  <div id="end">
+    <div class="q">How many losing trades could your <span style="color:#00FBF4">drawdown</span> take?</div>
+    <div class="pill">JOIN OUR DISCORD</div>
+    <div class="lib">LINK IN BIO</div>
+    <div class="disc">Example only, using the $50K Dynamic evaluation's figures. Halcyon offers simulated educational accounts. Results not guaranteed. T&amp;C apply.</div>
+  </div>
+  <div id="scan"></div><div id="vig"></div>
+  <canvas id="noise" width="270" height="480"></canvas>
+  <div id="off"><i id="offLine"></i></div>
+</div>
+<script>
+const PREVIEW = location.search.includes('plates');
+const OFF=0.42; // asr time -> video time (voice starts at 0.2 s, ASR runs about 0.22 s early)
+// ---------- 5x7 LED font ----------
+const F={'0':['01110','10001','10011','10101','11001','10001','01110'],'1':['00100','01100','00100','00100','00100','00100','01110'],
+'2':['01110','10001','00001','00010','00100','01000','11111'],'3':['11110','00001','00001','01110','00001','00001','11110'],
+'4':['00010','00110','01010','10010','11111','00010','00010'],'5':['11111','10000','11110','00001','00001','10001','01110'],
+'6':['00110','01000','10000','11110','10001','10001','01110'],'7':['11111','00001','00010','00100','01000','01000','01000'],
+'8':['01110','10001','10001','01110','10001','10001','01110'],'9':['01110','10001','10001','01111','00001','00010','01100'],
+'$':['00100','01111','10100','01110','00101','11110','00100'],',':['00000','00000','00000','00000','00110','00100','01000'],
+'?':['01110','10001','00001','00010','00100','00000','00100'],' ':['00000','00000','00000','00000','00000','00000','00000']};
+function led(cv,text,state,reveal){ // state: 0 off, 1 dim (grey), 2 lit (cyan). reveal 0..1 left-to-right scan
+  const x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);
+  const P=12.6,R=4.6,cols=Math.floor(cv.width/P);
+  let bits=[];for(let r=0;r<7;r++)bits.push(new Array(cols).fill(0));
+  let c=0;for(const ch of text){const g=F[ch]||F[' '];for(let r=0;r<7;r++)for(let k=0;k<5;k++)if(g[r][k]=='1'&&c+k<cols)bits[r][c+k]=1;c+=6;}
+  const oy=(cv.height-7*P)/2+P/2;
+  for(let r=0;r<7;r++)for(let k=0;k<cols;k++){const on=bits[r][k]&&state>0&&(k/cols)<=reveal;
+    x.beginPath();x.arc(k*P+P/2,oy+r*P,R,0,7);
+    if(on&&state==2){x.fillStyle='#00FBF4';x.shadowColor='rgba(0,251,244,.8)';x.shadowBlur=10;}
+    else if(on){x.fillStyle='#8C9696';x.shadowBlur=0;}
+    else{x.fillStyle='rgba(0,251,244,.07)';x.shadowBlur=0;}
+    x.fill();}
+  x.shadowBlur=0;
+}
+// ---------- helpers ----------
+const $=id=>document.getElementById(id);
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const ease=t=>1-Math.pow(1-cl(t),3);
+function show(id,on){$(id).style.display=on?'block':'none'}
+// ---------- captions ----------
+const ASR=[0.0,0.2,0.64,0.76,1.6,1.8,2.24,2.4,2.64,3.04,3.36,4.08,4.4,4.64,5.08,5.2,5.36,5.6,6.0,6.32,6.72,7.28,7.48,7.84,8.08,8.6,8.88,9.8,10.0,10.16,10.4,10.84,11.24,11.6,11.92,12.44,12.72,13.04,13.24,13.44,14.08,14.4,14.88,15.44,15.68,15.96,16.48,16.88,17.2,17.76,18.04,18.48,18.84,19.0,19.2,19.36,19.64,20.08,20.72,21.2,21.8,22.12,22.48,22.6,22.76,23.04,23.36,23.84,24.2,24.56,24.72,25.36,25.6,25.92,26.32,26.72,26.92,27.32];
+const T=i=>ASR[i]+OFF;
+const CH=[[['Your',0],['$50K',1,1],['evaluation',3]],[['is',4],['really',5],['a',6],['$2,000',7,1],['account.',10]],
+[['Everyone',11],['stares',13],['at',14],['the',15]],[['$3,000',16,1],['profit',19],['target.',20]],
+[['The',21],['number',22],['that',23],['actually',24],['ends',25],['evaluations',26]],[['is',27],['the',28],['$2,000',29,1],['max',32],['drawdown.',33,1]],
+[['On',35],['one',36],['ES',37,1],['contract,',39]],[["that's",40],['40 points.',41,1]],
+[['On',43],['one',44],['micro,',45,1]],[["it's",46],['400.',47,1]],
+[['And',49],['40 points',50,1],['can',52],['go',53]],[['in',54],['one',55],['busy',56],['morning.',57]],
+[['So',58],['size',59],['every',60],['trade',61]],[['from',62],['the',63],['drawdown',64,1],['first,',66]],[['then',67],['plan',68],['the',69],['target.',70]],
+[['How',71],['many',72],['losing',73],['trades',74]],[['could',75],['yours',76],['take?',77]]];
+let lastCh=-1;
+function caps(t){
+  let ci=-1;for(let i=0;i<CH.length;i++){if(t>=T(CH[i][0][1])-0.06)ci=i;}
+  if(t>=28.35)ci=-1;
+  if(ci>=0){const lastW=CH[ci][CH[ci].length-1][1];const nxt=ci+1<CH.length?T(CH[ci+1][0][1])-0.06:99;
+    if(t>Math.min(nxt,T(lastW)+0.9))ci=-1;}
+  const el=$('cap');
+  if(ci<0){el.innerHTML='';lastCh=-1;return;}
+  if(ci!==lastCh){el.innerHTML='<div>'+CH[ci].map(w=>`<span class="${w[2]?'k':''}">${w[0]}</span>`).join(' ')+'</div>';lastCh=ci;}
+  [...el.firstChild.children].forEach((s,j)=>{s.classList.toggle('on',t>=T(CH[ci][j][1])-0.03)});
+}
+// ---------- ticker ----------
+const TK=['$50K DYNAMIC','PROFIT TARGET <b>$3,000</b>','MAX DRAWDOWN <b>$2,000</b>','ES 1 PT = <b>$50</b>','MES 1 PT = <b>$5</b>','$2,000 = <b>40 ES PTS</b>','$2,000 = <b>400 MES PTS</b>','FLAT BY <b>4:45 PM ET</b>'];
+$('tickIn').innerHTML=(TK.join('&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;')+'&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;').repeat(4);
+// ---------- ruler (ES 40 blocks, MES 400 blocks) ----------
+function ruler(t){
+  const cv=$('ruler'),x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);
+  const a1=T(41)-0.05,a2=T(47)-0.05;
+  x.font='700 30px P';x.fillStyle='#AFAFAF';x.fillText('1 ES',40,62);
+  x.font='500 26px P';x.fillText('$50 a point',40,96);
+  const n1=Math.round(40*ease((t-a1)/0.5));
+  for(let i=0;i<40;i++){const bx=230+(i%20)*28,by=34+Math.floor(i/20)*30;x.fillStyle=i<n1?'#00FBF4':'rgba(0,251,244,.08)';x.fillRect(bx,by,22,24);}
+  if(t>a1){x.globalAlpha=ease((t-a1)/0.3);x.font='800 64px P';x.fillStyle='#00FBF4';x.fillText(n1+' PTS',230,158);x.globalAlpha=1;}
+  // MES
+  if(t>T(43)-0.1){
+    x.globalAlpha=ease((t-T(43)+0.1)/0.25);
+    x.font='700 30px P';x.fillStyle='#AFAFAF';x.fillText('1 MES',40,222);x.font='500 26px P';x.fillText('$5 a point',40,256);
+    const n2=Math.round(400*ease((t-a2)/0.6));
+    for(let i=0;i<400;i++){const bx=230+(i%40)*14,by=196+Math.floor(i/40)*12;x.fillStyle=i<n2?'#00FBF4':'rgba(0,251,244,.08)';x.fillRect(bx,by,10,10);}
+    if(t>a2){x.font='800 64px P';x.fillStyle='#00FBF4';x.fillText(n2+' PTS',230,384);}
+    x.globalAlpha=1;
+  }
+}
+// ---------- candle drop + battery ----------
+function drop(t){
+  const cv=$('drop'),x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);
+  const a=T(50)-0.05;
+  // block chart: flat path then one big down candle
+  x.strokeStyle='rgba(175,175,175,.25)';x.setLineDash([6,8]);x.beginPath();x.moveTo(30,90);x.lineTo(520,90);x.stroke();x.setLineDash([]);
+  const path=[0,4,-2,6,2,-3,5,1,3];
+  for(let i=0;i<path.length;i++){const bx=40+i*42,by=88-path[i]*3;x.fillStyle='#00FBF4';x.fillRect(bx,by-10,30,20);}
+  const p=ease((t-a)/0.45);const top=72,hgt=170*p;
+  if(t>a){x.fillStyle='rgba(175,175,175,.18)';x.strokeStyle='#AFAFAF';x.lineWidth=4;x.fillRect(430,top,48,hgt);x.strokeRect(430,top,48,hgt);
+    // down arrow
+    x.fillStyle='#AFAFAF';x.beginPath();x.moveTo(454,top+hgt+44);x.lineTo(430,top+hgt+12);x.lineTo(478,top+hgt+12);x.closePath();x.fill();
+    x.globalAlpha=ease((t-a-0.2)/0.3);x.font='800 66px P';x.fillStyle='#F2F2F2';x.fillText('−40 PTS',510,top+hgt-6);x.globalAlpha=1;}
+  // battery
+  const b0=a+0.45,b1=T(57)+0.25;const lvl=1-ease((t-b0)/(b1-b0));
+  x.font='700 28px P';x.fillStyle='#AFAFAF';x.fillText('DRAWDOWN',40,316);
+  x.strokeStyle='#AFAFAF';x.lineWidth=4;x.strokeRect(40,334,580,60);x.fillStyle='#AFAFAF';x.fillRect(624,350,14,28);
+  const seg=10;for(let i=0;i<seg;i++){const on=(i+1)/seg<=lvl+0.0001;x.fillStyle=on?'#00FBF4':'rgba(0,251,244,.08)';x.fillRect(50+i*57,343,49,42);}
+  if(t>b1-0.05){x.globalAlpha=ease((t-b1+0.05)/0.25);x.font='700 30px P';x.fillStyle='#F2F2F2';x.fillText('USED 100%',460,316);x.globalAlpha=1;}
+}
+// ---------- typing ----------
+function typed(el,txt,a,b,t,cursor){const n=Math.floor(txt.length*cl((t-a)/(b-a)));
+  el.innerHTML=txt.slice(0,n).replace(/\$2,000|\$3,000/g,m=>`<span style="color:#00FBF4">${m}</span>`)+(cursor&&Math.floor(t*2.4)%2==0?'<span style="color:#00FBF4">▌</span>':'');}
+// ---------- noise ----------
+function noise(on,seed){const cv=$('noise');cv.style.display=on?'block':'none';if(!on)return;
+  cv.style.width='1080px';cv.style.height='1920px';const x=cv.getContext('2d'),d=x.createImageData(270,480);
+  let s=seed*99991+7;for(let i=0;i<d.data.length;i+=4){s=(s*1103515245+12345)&0x7fffffff;const v=(s>>16)&255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255;}
+  x.putImageData(d,0,0);}
+// ---------- preview plates ----------
+const PL={A:[18,14,10],B:[12,15,17],C:[10,13,18],D:[8,14,14],E:[17,13,9],F:[16,12,9]};
+let dotCv=null;
+function dots(){if(dotCv)return dotCv;dotCv=document.createElement('canvas');dotCv.width=1080;dotCv.height=1920;const x=dotCv.getContext('2d');
+  for(let yy=9;yy<1920;yy+=18)for(let xx=9;xx<1080;xx+=18){x.fillStyle='rgba(0,251,244,.07)';x.beginPath();x.arc(xx,yy,3.2,0,7);x.fill();}return dotCv;}
+function plate(t,k){const cv=$('plate');if(!PREVIEW){cv.style.display='none';return;}cv.style.display='block';const x=cv.getContext('2d');
+  const c=PL[k]||PL.C;const g=x.createLinearGradient(0,0,0,1920);g.addColorStop(0,'#060808');g.addColorStop(.45,`rgb(${c[0]},${c[1]},${c[2]})`);g.addColorStop(1,'#040505');x.fillStyle=g;x.fillRect(0,0,1080,1920);
+  x.drawImage(dots(),0,0);
+  // a soft band of light rolls down the LED wall, like a CRT refresh
+  const by=((t*260)%2600)-340;const lg=x.createLinearGradient(0,by-220,0,by+220);lg.addColorStop(0,'rgba(0,251,244,0)');lg.addColorStop(.5,'rgba(0,251,244,.07)');lg.addColorStop(1,'rgba(0,251,244,0)');x.fillStyle=lg;x.fillRect(0,by-220,1080,440);
+  // dim lit dots that blink in patches
+  for(let i=0;i<60;i++){const s=(i*7919)%997;const xx=9+((s*37)%60)*18,yy=9+((s*53+i*11)%106)*18;const on=Math.sin(t*2.3+i)>0.55;if(!on)continue;x.fillStyle='rgba(0,251,244,.28)';x.beginPath();x.arc(xx,yy,3.2,0,7);x.fill();}
+}
+// ---------- timeline ----------
+const CUTS=[4.18,7.5,12.6,18.0,20.77,25.5];
+const SEG=[[0,'A'],[4.18,'B'],[7.5,'C'],[12.6,'D'],[18.0,'E'],[20.77,'F'],[25.5,'C']];
+window.DUR=31.6;
+window.seek=function(t){
+  let k='A';for(const s of SEG)if(t>=s[0])k=s[1];plate(t,k);
+  const endOn=t>=28.75;
+  // board: shown 0-7.5 and 25.5-28.35
+  const bOn=(t<7.5)||(t>=25.5&&t<28.35);show('pBoard',bOn);
+  if(bOn){
+    if(t<7.5){
+      $('l0').textContent='ACCOUNT';$('l1').textContent='TARGET';$('l2').textContent='DRAWDOWN';
+      // count up account
+      const a0=T(1)-0.05;const v=Math.round(50*ease((t-a0)/0.45));
+      const acc=t<a0?0:(t<T(7)-0.05?2:1);
+      led($('c0'),'$'+(v>=50?'50,000':String(v*1000).replace(/\B(?=(\d{3})+$)/g,',')),acc,1);
+      const tg=T(16)-0.05;let ts=t<tg?0:2;if(t>=tg&&t<7.3){const blink=Math.floor((t-tg)/0.22);if(blink<6&&blink%2==1)ts=1;}
+      led($('c1'),'$3,000',ts,t<tg?0:ease((t-tg)/0.25));
+      const dd=T(7)-0.05;const ds=t<dd?0:(t<T(13)?2:1);
+      led($('c2'),'$2,000',ds,ease((t-dd)/0.35));
+    } else {
+      $('l0').textContent='DRAWDOWN';$('l1').textContent='LOSING TRADES';$('l2').textContent='';
+      led($('c0'),'$2,000',2,1);
+      const q=T(73)-0.05;let qs=t<q?0:2;if(t>=q&&Math.floor((t-q)/0.35)%2==1)qs=1;
+      led($('c1'),'?',qs,1);led($('c2'),'',0,1);
+    }
+  }
+  // checking + error
+  show('pChk',t>=7.5&&t<T(25)-0.05);
+  $('chkFill').style.width=(cl((t-7.6)/(T(25)-0.1-7.6))*92)+'%';$('chkFill').style.background='repeating-linear-gradient(90deg,#0E7F7C 0 26px,transparent 26px 32px)';
+  show('pErr',t>=T(25)-0.05&&t<12.6);
+  const sel=t>=T(29)-0.05;$('errSel').style.background=sel?'#0E5F5D':'transparent';$('errSel').style.color=sel?'#F2F2F2':'#111';
+  // ruler, drop, pad
+  show('pRule',t>=12.6&&t<18.0);if(t>=12.6&&t<18.0)ruler(t);
+  show('pDrop',t>=18.0&&t<20.77);if(t>=18.0&&t<20.77)drop(t);
+  show('pPad',t>=20.77&&t<25.5);
+  if(t>=20.77&&t<25.5){typed($('t0'),'Before every trade:',T(59)-0.05,T(61)+0.3,t,t<T(64)-0.1);typed($('t1'),'1. Drawdown first: $2,000',T(64)-0.1,T(66)+0.25,t,t>=T(64)-0.1&&t<T(67)-0.1);typed($('t2'),'2. Then the target: $3,000',T(67)-0.05,T(70)+0.05,t,t>=T(67)-0.1);}
+  // captions, ticker
+  caps(t);
+  $('tickIn').style.left=(-((t*95)%1800))+'px';
+  // glitch: static bursts at cuts
+  let nOn=false;for(const c of CUTS)if(t>=c-0.07&&t<c+0.08)nOn=true;noise(nOn,Math.floor(t*30));
+  // header + ticker hide during switch-off / end
+  const hide=t>=28.35;$('hdr').style.display=hide?'none':'block';$('tick').style.display=hide?'none':'block';$('cap').style.display=hide?'none':'flex';
+  // TV switch-off 28.35 -> 28.75
+  const off=t>=28.35&&t<28.75;show('off',off);
+  if(off){const p=(t-28.35)/0.4;const L=$('offLine');let w,h;if(p<0.45){w=1080;h=Math.max(6,1920*(1-p/0.45));}else{w=Math.max(8,1080*(1-(p-0.45)/0.45));h=6;}
+    if(p>0.92){w=8;h=8;}L.style.width=w+'px';L.style.height=h+'px';L.style.marginLeft=(-w/2)+'px';L.style.marginTop=(-h/2)+'px';L.style.opacity=p>0.97?0:1;}
+  show('end',endOn);
+  if(endOn){$('end').style.opacity=cl((t-28.75)/0.25);}
+  // gentle frame jitter on overlays (taped feel)
+  const j=Math.sin(t*37.1)*0.8+Math.sin(t*91.7)*0.6;$('hdr').style.transform=`translate(${j.toFixed(2)}px,${(Math.sin(t*53.3)*0.6).toFixed(2)}px)`;
+};
+</script></body></html>
